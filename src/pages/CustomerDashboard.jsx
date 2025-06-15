@@ -1,48 +1,62 @@
 // soubor: src/pages/CustomerDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { QRCodeSVG } from 'qrcode.react';
 
 const CustomerDashboard = ({ user }) => {
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [qrToken, setQrToken] = useState(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
 
   const userName = user.user_metadata?.full_name || user.email;
 
-  // Tento 'useEffect' se spustí jednou, když se komponenta poprvé zobrazí
   useEffect(() => {
-    // Vytvoříme funkci pro načtení dat
     const fetchPassBalance = async () => {
+      setLoading(true);
       try {
-        // Dotaz do databáze Supabase
-        const { data, error } = await supabase
-          .from('passes') // Z tabulky 'passes'
-          .select('entries_balance') // Vyber sloupec 'entries_balance'
-          .eq('user_id', user.id) // Kde se 'user_id' rovná ID přihlášeného uživatele
-          .single(); // Očekáváme právě jeden výsledek
-
-        if (error) {
-          // Pokud nastane chyba v dotazu, uložíme ji
-          throw error;
-        }
-
-        if (data) {
-          // Pokud data přijdou, uložíme počet vstupů do našeho 'stavu'
-          setBalance(data.entries_balance);
-        }
+        const { data, error } = await supabase.from('passes').select('entries_balance').eq('user_id', user.id).single();
+        if (error) throw error;
+        if (data) setBalance(data.entries_balance);
       } catch (err) {
         console.error('Chyba při načítání permanentky:', err);
         setError('Nepodařilo se načíst data o permanentce.');
       } finally {
-        // Ať už to dopadne jakkoliv, přestaneme načítat
         setLoading(false);
       }
     };
+    fetchPassBalance();
+  }, [user.id]);
 
-    fetchPassBalance(); // Spustíme funkci pro načtení dat
-  }, [user.id]); // Tento efekt se znovu spustí, jen pokud se změní ID uživatele
+  const handleUseEntry = async () => {
+    setIsGeneratingQr(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-qr-token');
+      if (error) throw error;
+      setQrToken(data.token);
+    } catch (err) {
+      setError('Nepodařilo se vygenerovat QR kód. Zkuste to znovu.');
+      console.error(err);
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
 
-  // Funkce, která zobrazí obsah hlavní karty
+  if (qrToken) {
+    return (
+      <div style={{ background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '1rem' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ukažte tento kód operátorovi</h2>
+        <QRCodeSVG value={qrToken} size={256} style={{ maxWidth: '80vw', height: 'auto' }} />
+        <button onClick={() => setQrToken(null)} style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#4b5563', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
+          Zavřít
+        </button>
+        <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#6b7280', textAlign: 'center' }}>Kód je platný 2 minuty.</p>
+      </div>
+    );
+  }
+
   const renderBalanceCard = () => {
     if (loading) {
       return <p>Načítám permanentku...</p>;
@@ -62,7 +76,7 @@ const CustomerDashboard = ({ user }) => {
   };
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div style={{ padding: '1rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Ahoj, {userName}!</h1>
         <button onClick={() => supabase.auth.signOut()} style={{ fontSize: '0.875rem', color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -71,8 +85,21 @@ const CustomerDashboard = ({ user }) => {
       </header>
 
       <main style={{ textAlign: 'center' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', marginBottom: '2.5rem' }}>
           {renderBalanceCard()}
+        </div>
+
+        {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
+
+        {/* TATO ČÁST JE DŮLEŽITÁ - ZAJIŠŤUJE ZOBRAZENÍ TLAČÍTKA */}
+        <div style={{ display: 'grid', gap: '1rem' }}>
+           <button
+            onClick={handleUseEntry}
+            disabled={loading || isGeneratingQr || balance === 0}
+            style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', cursor: 'pointer', opacity: (loading || isGeneratingQr || balance === 0) ? 0.5 : 1 }}
+          >
+            {isGeneratingQr ? 'Generuji kód...' : 'POUŽÍT VSTUP (QR KÓD)'}
+          </button>
         </div>
       </main>
     </div>
