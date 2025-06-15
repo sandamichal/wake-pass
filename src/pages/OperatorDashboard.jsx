@@ -42,27 +42,29 @@ const OperatorDashboard = ({ user }) => {
 
   const handleTopUp = async () => {
     if (!selectedCustomer) return;
+
     setIsLoading(true);
     setMessage('');
     try {
-      const { data, error } = await supabase.functions.invoke('top-up-pass', {
-        body: { 
-          customerId: selectedCustomer.id, 
-          amountToAdd: amountToAdd 
-        },
+      // ZMĚNA ZDE: Voláme naši novou RPC funkci 'top_up_pass'
+      const { data, error } = await supabase.rpc('top_up_pass', { 
+        customer_id: selectedCustomer.id, 
+        amount_to_add: amountToAdd 
       });
+
       if (error) throw error;
+
       setMessage(data.message || 'Operace proběhla úspěšně.');
       setSelectedCustomer(null); 
       setSearchResults([]);
       setSearchQuery('');
+
     } catch (error) {
       setMessage(`Chyba při nabíjení: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const selectCustomerForTopUp = (customer) => {
     setSelectedCustomer(customer);
