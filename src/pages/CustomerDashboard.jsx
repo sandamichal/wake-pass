@@ -1,3 +1,4 @@
+// soubor: src/pages/CustomerDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
@@ -87,11 +88,21 @@ const CustomerDashboard = ({ user }) => {
         <div style={{ backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', marginBottom: '2.5rem' }}>
           {renderBalanceCard()}
         </div>
-        
+
         {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-        
+
         <div style={{ display: 'grid', gap: '1rem' }}>
            <button
             onClick={handleUseEntry}
             disabled={loading || isGeneratingQr || balance === 0}
-            style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', cursor: 'pointer', opacity: (loading || isGeneratingQr ||
+            style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', cursor: 'pointer', opacity: (loading || isGeneratingQr || balance === 0) ? 0.5 : 1 }}
+          >
+            {isGeneratingQr ? 'Generuji kód...' : 'POUŽÍT VSTUP (QR KÓD)'}
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default CustomerDashboard;
