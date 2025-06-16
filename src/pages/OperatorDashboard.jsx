@@ -1,4 +1,3 @@
-// soubor: src/pages/OperatorDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -56,50 +55,73 @@ const OperatorDashboard = ({ user }) => {
     }
   };
 
+  const selectCustomerForTopUp = (customer) => {
+    setSelectedCustomer(customer);
+    setMessage('');
+  };
+
+  // Komponenta pro skener, používá useEffect pro správné spuštění a úklid
   const ScannerComponent = () => {
     useEffect(() => {
       let scanner;
-      const onScanSuccess = (decodedText, decodedResult) => {
-        if (scanner) {
-          scanner.clear().catch(error => { console.error("Failed to clear scanner.", error); });
+      
+      const onScanSuccess = async (decodedText) => {
+        // Zabráníme opakovanému zpracování stejného skenu
+        if (isLoading) return;
+        
+        // Zastavíme skener, aby se předešlo dalším pokusům
+        if (scanner && scanner.getState() === 2) { // 2 = SCANNING
+          scanner.clear().catch(err => console.error("Nepodařilo se vyčistit skener.", err));
         }
+
         setIsScanning(false);
         setIsLoading(true);
         setMessage('Zpracovávám QR kód...');
-
-        (async () => {
-          try {
-            const { data, error } = await supabase.rpc('use_entry_with_nonce', {
-              scanned_nonce: decodedText,
-            });
-            if (error) throw error;
-            setMessage(data.message || 'Vstup úspěšně odečten.');
-          } catch (err) {
-            setMessage(`Chyba: ${err.message}`);
-          } finally {
-            setIsLoading(false);
-          }
-        })();
-      };
-
-      if (!scanner) {
-        scanner = new Html5QrcodeScanner('qr-reader-container', { 
-          qrbox: { width: 250, height: 250 },
-          fps: 10,
-        }, false);
-        scanner.render(onScanSuccess, (error) => {});
-      }
-
-      return () => {
-        if (scanner && scanner.getState() === 2) { // 2 = SCANNING
-           scanner.clear().catch(err => {});
+        
+        try {
+          const { data, error } = await supabase.rpc('use_entry_with_nonce', {
+            scanned_nonce: decodedText,
+          });
+          if (error) throw error;
+          setMessage(data.message || 'Vstup úspěšně odečten.');
+        } catch (err) {
+          setMessage(`Chyba: ${err.message}`);
+        } finally {
+          setIsLoading(false);
         }
       };
-    }, []);
+
+      const onScanFailure = (error) => {
+        // Tuto chybu můžeme ignorovat, zobrazuje se, když v záběru není QR kód
+      };
+      
+      // Vytvoříme novou instanci skeneru
+      scanner = new Html5QrcodeScanner(
+        'qr-reader-container', 
+        { 
+          qrbox: { width: 250, height: 250 },
+          fps: 10,
+        }, 
+        false
+      );
+      
+      // Spustíme skenování
+      scanner.render(onScanSuccess, onScanFailure);
+
+      // Funkce pro "úklid", když se komponenta zavře
+      return () => {
+        if (scanner) {
+          scanner.clear().catch(error => {
+            console.error("Nepodařilo se vyčistit skener při zavírání.", error);
+          });
+        }
+      };
+    }, []); // Prázdné pole znamená, že se useEffect spustí jen jednou
 
     return <div id="qr-reader-container" style={{width: '100%', border: '1px solid silver'}}></div>;
   };
 
+  // Pokud je aktivní skenování, zobrazíme jen skener
   if (isScanning) {
     return (
       <div style={{ width: '100%', maxWidth: '500px', margin: 'auto', paddingTop: '2rem' }}>
@@ -111,11 +133,6 @@ const OperatorDashboard = ({ user }) => {
       </div>
     );
   }
-
-  const selectCustomerForTopUp = (customer) => {
-    setSelectedCustomer(customer);
-    setMessage('');
-  };
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
@@ -147,8 +164,8 @@ const OperatorDashboard = ({ user }) => {
         </div>
       </div>
 
-      {selectedCustomer && ( <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#f9fafb' }}> <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Dobití pro: <span style={{ color: '#3b82f6' }}>{selectedCustomer.full_name}</span></h2><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="number" value={amountToAdd} onChange={(e) => setAmountToAdd(parseInt(e.target.value, 10))} style={{ padding: '0.5rem', width: '5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }} /><span style={{ fontWeight: '500' }}>vstupů</span><button onClick={handleTopUp} disabled={isLoading || !amountToAdd || amountToAdd <= 0} style={{ marginLeft: 'auto', padding: '0.75rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: (isLoading || !amountToAdd || amountToAdd <= 0) ? 0.5 : 1 }}>{isLoading ? 'Pracuji...' : 'Potvrdit Nabití'}</button></div></div>)}
-
+      {selectedCustomer && ( <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#f9fafb' }}> <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Dobití pro: <span style={{ color: '#3b82f6' }}>{selectedCustomer.full_name}</span></h2><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="number" step="0.5" min="0.5" value={amountToAdd} onChange={(e) => setAmountToAdd(Number(e.target.value))} style={{ padding: '0.5rem', width: '5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }} /><span style={{ fontWeight: '500' }}>vstupů</span><button onClick={handleTopUp} disabled={isLoading || !amountToAdd || amountToAdd <= 0} style={{ marginLeft: 'auto', padding: '0.75rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: (isLoading || !amountToAdd || amountToAdd <= 0) ? 0.5 : 1 }}>{isLoading ? 'Pracuji...' : 'Potvrdit Nabití'}</button></div></div>)}
+      
       {message && <p style={{ marginTop: '1rem', padding: '1rem', background: '#f3f4f6', borderRadius: '0.25rem' }}>{message}</p>}
     </div>
   );

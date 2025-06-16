@@ -1,4 +1,4 @@
-// soubor: src/pages/CustomerDashboard.jsx
+// Zde je finální verze CustomerDashboard.jsx pro jistotu celá
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
@@ -73,11 +73,13 @@ const CustomerDashboard = ({ user }) => {
     if (error) {
       return <p style={{ color: 'red' }}>{error}</p>;
     }
+    // Zobrazení zůstatku s desetinnými místy, pokud jsou
+    const formattedBalance = Number(balance).toFixed(balance % 1 === 0 ? 0 : 1);
     return (
       <>
         <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Váš aktuální zůstatek</p>
         <p style={{ fontSize: '5rem', fontWeight: '800', color: '#3b82f6', margin: '0.5rem 0', lineHeight: '1' }}>
-          {balance}
+          {formattedBalance}
         </p>
         <p style={{ color: '#1f2937', fontSize: '1.5rem', fontWeight: '600' }}>VSTUPŮ</p>
       </>
@@ -104,6 +106,7 @@ const CustomerDashboard = ({ user }) => {
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Použít vstup</h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem'}}>
                 <label htmlFor="amount">Počet vstupů:</label>
+                {/* ZMĚNA ZDE: Přidán step a min, změna na Number() */}
                 <input
                     id="amount"
                     type="number"
