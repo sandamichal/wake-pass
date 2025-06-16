@@ -9,44 +9,42 @@ const CustomerDashboard = ({ user }) => {
   const [error, setError] = useState(null);
   const [qrToken, setQrToken] = useState(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
-  // ZMĚNA ZDE: Výchozí stav bude text '1.0', aby odpovídal menu
-  const [amountToUse, setAmountToUse] = useState('1.0'); 
+  const [amountToUse, setAmountToUse] = useState('1.0');
 
   const userName = user.user_metadata?.full_name || user.email;
 
   const selectOptions = Array.from({ length: 10 }, (_, i) => (0.5 * (i + 1)).toFixed(1));
 
+  const fetchPassBalance = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('passes').select('entries_balance').eq('user_id', user.id).single();
+      if (error) throw error;
+      if (data) setBalance(data.entries_balance);
+    } catch (err) {
+      console.error('Chyba při načítání permanentky:', err);
+      setError('Nepodařilo se načíst data o permanentce.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPassBalance = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.from('passes').select('entries_balance').eq('user_id', user.id).single();
-        if (error) throw error;
-        if (data) setBalance(data.entries_balance);
-      } catch (err) {
-        console.error('Chyba při načítání permanentky:', err);
-        setError('Nepodařilo se načíst data o permanentce.');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchPassBalance();
   }, [user.id]);
 
   const handleUseEntry = async () => {
-    // ZMĚNA ZDE: Převedeme na číslo až tady, těsně před použitím
     const numericAmountToUse = Number(amountToUse);
     if (numericAmountToUse <= 0 || numericAmountToUse > balance) {
-        setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
-        return;
+      setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
+      return;
     }
     setIsGeneratingQr(true);
     setError(null);
     try {
-      const { data, error } = await supabase.rpc('create_qr_nonce', { 
-        amount_to_use: numericAmountToUse 
+      const { data, error } = await supabase.rpc('create_qr_nonce', {
+        amount_to_use: numericAmountToUse,
       });
-
       if (error) throw error;
       setQrToken(data);
     } catch (err) {
@@ -57,13 +55,19 @@ const CustomerDashboard = ({ user }) => {
     }
   };
 
+  // ZMĚNA ZDE: Nová funkce pro zavření QR kódu a obnovení dat
+  const handleCloseQr = () => {
+    setQrToken(null);
+    fetchPassBalance(); // Znovu načteme data z databáze
+  };
+
   if (qrToken) {
     return (
       <div style={{ background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '1rem' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ukažte tento kód operátorovi</h2>
-        <p style={{fontSize: '1.5rem', fontWeight: 'bold'}}>Počet hodin k odečtení: {Number(amountToUse).toFixed(1)}</p>
+        <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Počet hodin k odečtení: {Number(amountToUse).toFixed(1)}</p>
         <QRCodeSVG value={qrToken} size={256} style={{ margin: '1rem 0', maxWidth: '80vw', height: 'auto' }} />
-        <button onClick={() => setQrToken(null)} style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#4b5563', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
+        <button onClick={handleCloseQr} style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#4b5563', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
           Zavřít
         </button>
         <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#6b7280', textAlign: 'center' }}>Kód je platný 2 minuty.</p>
@@ -78,7 +82,7 @@ const CustomerDashboard = ({ user }) => {
     if (error) {
       return <p style={{ color: 'red' }}>{error}</p>;
     }
-    const formattedBalance = Number(balance).toLocaleString('cs-CZ', {minimumFractionDigits: 1, maximumFractionDigits: 1});
+    const formattedBalance = Number(balance).toLocaleString('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     return (
       <>
         <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Váš aktuální zůstatek</p>
@@ -110,7 +114,6 @@ const CustomerDashboard = ({ user }) => {
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Použít hodiny</h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem'}}>
                 <label htmlFor="amount">Počet hodin:</label>
-                {/* ZMĚNA ZDE: Už nepřevádíme na číslo, pracujeme s textem */}
                 <select
                     id="amount"
                     value={amountToUse}
