@@ -13,6 +13,7 @@ const CustomerDashboard = ({ user }) => {
   const selectOptions = Array.from({ length: 10 }, (_, i) => (0.5 * (i + 1)).toFixed(1));
 
   const fetchPassBalance = async () => {
+    setError(null);
     setLoading(true);
     try {
       const { data, error: dbError } = await supabase.from('passes').select('entries_balance').eq('user_id', user.id).single();
@@ -44,6 +45,7 @@ const CustomerDashboard = ({ user }) => {
       const { data, error: funcError } = await supabase.rpc('create_qr_nonce', { 
         amount_to_use: numericAmountToUse 
       });
+
       if (funcError) throw funcError;
       setQrToken(data);
     } catch (err) {
@@ -53,7 +55,7 @@ const CustomerDashboard = ({ user }) => {
       setIsGeneratingQr(false);
     }
   };
-
+  
   const handleCloseQr = () => {
     setQrToken(null);
     fetchPassBalance();
@@ -106,7 +108,11 @@ const CustomerDashboard = ({ user }) => {
             {selectOptions.map(option => (<option key={option} value={option}>{option}</option>))}
           </select>
         </div>
-        <button onClick={handleUseEntry} disabled={loading || isGeneratingQr || balance === 0 || Number(amountToUse) > balance} style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', cursor: 'pointer', opacity: (loading || isGeneratingQr || balance === 0 || Number(amountToUse) > balance) ? 0.5 : 1 }} >
+        <button
+          onClick={handleUseEntry}
+          disabled={loading || isGeneratingQr || balance === 0 || Number(amountToUse) > balance}
+          style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', cursor: 'pointer', opacity: (loading || isGeneratingQr || balance === 0 || Number(amountToUse) > balance) ? 0.5 : 1 }}
+        >
           {isGeneratingQr ? 'Generuji kód...' : 'POUŽÍT HODINY (QR KÓD)'}
         </button>
       </div>

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import CustomerDashboard from './pages/CustomerDashboard';
 import OperatorDashboard from './pages/OperatorDashboard';
-import Layout from './components/Layout'; // Důležitý import
+import Layout from './components/Layout';
 
 function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authView, setAuthView] = useState('login');
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -31,7 +33,7 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
-
+  
   const getProfile = async (user) => {
     try {
       setLoading(true);
@@ -62,10 +64,13 @@ function App() {
 
   const renderContent = () => {
     if (!session) {
-      return <LoginPage />;
+      if (authView === 'login') {
+        return <LoginPage onSwitchView={() => setAuthView('register')} />;
+      } else {
+        return <RegisterPage onSwitchView={() => setAuthView('login')} />;
+      }
     }
-
-    // Zobrazíme spinner, dokud se nenačte profil
+    
     if (loading || !profile) {
       return <div style={{padding: '2rem', textAlign: 'center'}}>Načítání...</div>;
     }

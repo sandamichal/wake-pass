@@ -65,7 +65,7 @@ const OperatorDashboard = ({ user }) => {
       let scanner;
       const onScanSuccess = async (decodedText) => {
         if (isLoading) return;
-        if (scanner && scanner.getState() === 2) {
+        if (scanner && scanner.getState() === 2) { // 2 = SCANNING
           scanner.clear().catch(err => console.error("Nepodařilo se vyčistit skener.", err));
         }
         setIsScanning(false);
@@ -89,8 +89,7 @@ const OperatorDashboard = ({ user }) => {
       
       return () => {
         if (scanner) {
-          // Pokusíme se zastavit skener, pouze pokud ještě běží
-          if (scanner.getState() === 2) { // 2 = SCANNING
+          if (scanner.getState() === 2) {
              scanner.clear().catch(err => {});
           }
         }

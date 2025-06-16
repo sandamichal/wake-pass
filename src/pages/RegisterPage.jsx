@@ -1,39 +1,53 @@
+// soubor: src/pages/RegisterPage.jsx
 import React, { useState } from 'react';
-import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '../supabaseClient';
 
-const LoginPage = ({ onSwitchView }) => {
+const RegisterPage = ({ onSwitchView }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-    const { error } = await supabase.auth.signInWithPassword({
+    setError('');
+
+    const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
+      options: {
+        data: {
+          full_name: fullName, // Předáme jméno, aby se uložilo do profilu
+        },
+      },
     });
-    if (error) {
-      setMessage('Chyba při přihlášení: ' + error.message);
-    }
-    // Pokud je přihlášení úspěšné, onAuthStateChange v App.jsx se postará o zbytek
-    setLoading(false);
-  };
 
-  const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) {
+      setError('Chyba při registraci: ' + error.message);
+    } else {
+      setMessage('Registrace úspěšná! Prosím, zkontrolujte svůj e-mail a klikněte na potvrzovací odkaz.');
+    }
+    setLoading(false);
   };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem', backgroundColor: '#f3f4f6' }}>
       <div style={{ maxWidth: '24rem', width: '100%', textAlign: 'center', background: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#3b82f6', marginTop: '1rem' }}>WakePass</h1>
-        <p style={{ color: '#4b5563', marginTop: '0.5rem', marginBottom: '2rem' }}>Vaše permanentka. Vždy po ruce.</p>
+        <h1 style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#3b82f6', marginTop: '1rem' }}>Vytvořit účet</h1>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+          <input
+            type="text"
+            placeholder="Celé jméno"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+            style={{ padding: '0.75rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }}
+          />
           <input
             type="email"
             placeholder="E-mail"
@@ -44,30 +58,24 @@ const LoginPage = ({ onSwitchView }) => {
           />
           <input
             type="password"
-            placeholder="Heslo"
+            placeholder="Heslo (min. 6 znaků)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             style={{ padding: '0.75rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }}
           />
           <button type="submit" disabled={loading} style={{ padding: '0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: loading ? 0.5 : 1 }}>
-            {loading ? 'Přihlašuji...' : 'Přihlásit se'}
+            {loading ? 'Registruji...' : 'Zaregistrovat se'}
           </button>
         </form>
 
-        <div style={{ margin: '1rem 0', color: '#9ca3af' }}>nebo</div>
-
-        <button onClick={handleGoogleLogin} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer' }} >
-          <FcGoogle style={{ marginRight: '0.75rem', fontSize: '1.5rem' }} />
-          Přihlásit se přes Google
-        </button>
-
-        {message && <p style={{ color: 'red', marginTop: '1rem' }}>{message}</p>}
+        {message && <p style={{ color: 'green', marginTop: '1rem' }}>{message}</p>}
+        {error && <p style={{ color: 'red', marginTop: '1rem' }}>{error}</p>}
 
         <div style={{ marginTop: '2rem', fontSize: '0.875rem' }}>
-          <span>Nemáte účet? </span>
+          <span>Máte již účet? </span>
           <button onClick={onSwitchView} style={{ color: '#3b82f6', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer' }}>
-            Zaregistrujte se
+            Přihlaste se
           </button>
         </div>
       </div>
@@ -75,4 +83,4 @@ const LoginPage = ({ onSwitchView }) => {
   );
 };
 
-export default LoginPage;
+export default RegisterPage;
