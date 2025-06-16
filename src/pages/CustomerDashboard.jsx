@@ -12,7 +12,6 @@ const CustomerDashboard = ({ user }) => {
 
   const userName = user.user_metadata?.full_name || user.email;
 
-  // Generování možností pro rozevírací menu od 0.5 do 5
   const selectOptions = Array.from({ length: 10 }, (_, i) => (0.5 * (i + 1)).toFixed(1));
 
   useEffect(() => {
@@ -33,7 +32,8 @@ const CustomerDashboard = ({ user }) => {
   }, [user.id]);
 
   const handleUseEntry = async () => {
-    if (amountToUse <= 0 || amountToUse > balance) {
+    const numericAmountToUse = Number(amountToUse);
+    if (numericAmountToUse <= 0 || numericAmountToUse > balance) {
         setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
         return;
     }
@@ -41,7 +41,7 @@ const CustomerDashboard = ({ user }) => {
     setError(null);
     try {
       const { data, error } = await supabase.rpc('create_qr_nonce', { 
-        amount_to_use: amountToUse 
+        amount_to_use: numericAmountToUse 
       });
 
       if (error) throw error;
@@ -58,7 +58,7 @@ const CustomerDashboard = ({ user }) => {
     return (
       <div style={{ background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '1rem' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ukažte tento kód operátorovi</h2>
-        <p style={{fontSize: '1.5rem', fontWeight: 'bold'}}>Počet hodin k odečtení: {amountToUse}</p>
+        <p style={{fontSize: '1.5rem', fontWeight: 'bold'}}>Počet hodin k odečtení: {Number(amountToUse).toFixed(1)}</p>
         <QRCodeSVG value={qrToken} size={256} style={{ margin: '1rem 0', maxWidth: '80vw', height: 'auto' }} />
         <button onClick={() => setQrToken(null)} style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#4b5563', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
           Zavřít
@@ -75,8 +75,7 @@ const CustomerDashboard = ({ user }) => {
     if (error) {
       return <p style={{ color: 'red' }}>{error}</p>;
     }
-    // Formátování, aby se zobrazilo .0 nebo .5
-    const formattedBalance = Number(balance).toFixed(balance % 1 === 0 ? 0 : 1);
+    const formattedBalance = Number(balance).toLocaleString('cs-CZ', {minimumFractionDigits: 1, maximumFractionDigits: 1});
     return (
       <>
         <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Váš aktuální zůstatek</p>
@@ -101,9 +100,9 @@ const CustomerDashboard = ({ user }) => {
         <div style={{ backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', marginBottom: '2.5rem' }}>
           {renderBalanceCard()}
         </div>
-        
+
         {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-        
+
         <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Použít hodiny</h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem'}}>
