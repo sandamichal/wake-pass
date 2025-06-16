@@ -1,7 +1,6 @@
-// soubor: src/pages/OperatorDashboard.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { QrScanner } from '@yudiel/react-qr-scanner';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const OperatorDashboard = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +38,7 @@ const OperatorDashboard = ({ user }) => {
 
   const handleTopUp = async () => {
     if (!selectedCustomer) return;
-    
+
     setIsLoading(true);
     setMessage('');
     try {
@@ -49,12 +48,12 @@ const OperatorDashboard = ({ user }) => {
       });
 
       if (error) throw error;
-      
+
       setMessage(data.message || 'Operace proběhla úspěšně.');
       setSelectedCustomer(null); 
       setSearchResults([]);
       setSearchQuery('');
-      
+
     } catch (error) {
       setMessage(`Chyba při nabíjení: ${error.message}`);
     } finally {
@@ -62,51 +61,70 @@ const OperatorDashboard = ({ user }) => {
     }
   };
 
-const handleScanResult = async (result) => {
-  // Zabráníme opakovanému zpracování, pokud skener pípne vícekrát
-  if (isLoading) return;
-
-  if (!!result) {
-    setIsScanning(false); // Vypneme skener
-    setIsLoading(true);
-    setMessage('Zpracovávám QR kód...');
-    try {
-      // ZMĚNA ZDE: Voláme RPC funkci místo problematické Edge funkce
-      const { data, error } = await supabase.rpc('use_entry_with_nonce', {
-        scanned_nonce: result,
-      });
-
-      if (error) throw error;
-
-      setMessage(data.message || 'Vstup úspěšně odečten.');
-
-    } catch (err) {
-      // Zobrazíme chybovou hlášku přímo z databáze
-      setMessage(`Chyba: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-};
-
   const selectCustomerForTopUp = (customer) => {
     setSelectedCustomer(customer);
     setMessage('');
   }
 
+  const ScannerComponent = () => {
+    useEffect(() => {
+      let scanner;
+      const onScanSuccess = (decodedText, decodedResult) => {
+        if (scanner) {
+          scanner.clear().catch(error => {
+            console.error("Failed to clear html5-qrcode-scanner.", error);
+          });
+        }
+
+        setIsScanning(false);
+        setIsLoading(true);
+        setMessage('Zpracovávám QR kód...');
+
+        (async () => {
+          try {
+            const { data, error } = await supabase.rpc('use_entry_with_nonce', {
+              scanned_nonce: decodedText,
+            });
+            if (error) throw error;
+            setMessage(data.message || 'Vstup úspěšně odečten.');
+          } catch (err) {
+            setMessage(`Chyba: ${err.message}`);
+          } finally {
+            setIsLoading(false);
+          }
+        })();
+      };
+
+      const onScanFailure = (error) => {
+        // Ignorovat, když se nenajde kód
+      };
+
+      // Zkontrolujeme, jestli už scanner neběží
+      if (!scanner) {
+        scanner = new Html5QrcodeScanner('qr-reader-container', { 
+          qrbox: { width: 250, height: 250 },
+          fps: 10,
+        }, false);
+        scanner.render(onScanSuccess, onScanFailure);
+      }
+
+      return () => {
+        if (scanner) {
+          scanner.clear().catch(error => {
+            console.error("Failed to clear html5-qrcode-scanner.", error);
+          });
+        }
+      };
+    }, []);
+
+    return <div id="qr-reader-container" style={{width: '100%'}}></div>;
+  };
+
   if (isScanning) {
     return (
       <div style={{ width: '100%', maxWidth: '500px', margin: 'auto', paddingTop: '2rem' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '1rem' }}>Naskenujte QR kód zákazníka</h2>
-        <QrScanner
-          onDecode={handleScanResult}
-          onError={(error) => {
-            console.log(error?.message);
-            // Můžeme přidat i zprávu pro uživatele, pokud je potřeba
-            // setMessage('Chyba skeneru: ' + error?.message);
-          }}
-          containerStyle={{ width: '100%' }}
-        />
+        <ScannerComponent />
         <button onClick={() => setIsScanning(false)} style={{ width: '100%', marginTop: '1rem', padding: '1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
           Zrušit
         </button>
@@ -134,13 +152,7 @@ const handleScanResult = async (result) => {
         <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>Nabít permanentku</h2>
         <p style={{fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem'}}>Nejprve vyhledejte zákazníka, poté zadejte počet vstupů.</p>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input
-            type="text"
-            placeholder="Jméno nebo e-mail..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ flexGrow: 1, padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }}
-          />
+          <input type="text" placeholder="Jméno nebo e-mail..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flexGrow: 1, padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }}/>
           <button onClick={handleSearch} disabled={isLoading} style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: isLoading ? 0.5 : 1 }}>
             {isLoading ? 'Hledám...' : 'Hledat'}
           </button>
@@ -150,30 +162,8 @@ const handleScanResult = async (result) => {
         </div>
       </div>
 
-      {selectedCustomer && (
-        <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#f9fafb' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-            Dobití pro: <span style={{ color: '#3b82f6' }}>{selectedCustomer.full_name}</span>
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input
-              type="number"
-              value={amountToAdd}
-              onChange={(e) => setAmountToAdd(parseInt(e.target.value, 10))}
-              style={{ padding: '0.5rem', width: '5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }}
-            />
-            <span style={{ fontWeight: '500' }}>vstupů</span>
-            <button
-              onClick={handleTopUp}
-              disabled={isLoading || !amountToAdd || amountToAdd <= 0}
-              style={{ marginLeft: 'auto', padding: '0.75rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: (isLoading || !amountToAdd || amountToAdd <= 0) ? 0.5 : 1 }}
-            >
-              {isLoading ? 'Pracuji...' : 'Potvrdit Nabití'}
-            </button>
-          </div>
-        </div>
-      )}
-      
+      {selectedCustomer && ( <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#f9fafb' }}> <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Dobití pro: <span style={{ color: '#3b82f6' }}>{selectedCustomer.full_name}</span></h2><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="number" value={amountToAdd} onChange={(e) => setAmountToAdd(parseInt(e.target.value, 10))} style={{ padding: '0.5rem', width: '5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }} /><span style={{ fontWeight: '500' }}>vstupů</span><button onClick={handleTopUp} disabled={isLoading || !amountToAdd || amountToAdd <= 0} style={{ marginLeft: 'auto', padding: '0.75rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: (isLoading || !amountToAdd || amountToAdd <= 0) ? 0.5 : 1 }}>{isLoading ? 'Pracuji...' : 'Potvrdit Nabití'}</button></div></div>)}
+
       {message && <p style={{ marginTop: '1rem', padding: '1rem', background: '#f3f4f6', borderRadius: '0.25rem' }}>{message}</p>}
     </div>
   );
