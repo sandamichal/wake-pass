@@ -1,3 +1,4 @@
+// soubor: src/pages/OperatorDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -22,9 +23,7 @@ const OperatorDashboard = ({ user }) => {
       const { data, error } = await supabase.rpc('search_customers', {
         search_term: searchQuery,
       });
-
       if (error) throw error;
-
       setSearchResults(data);
       if (data.length === 0) {
         setMessage('Nenalezen žádný zákazník.');
@@ -38,7 +37,6 @@ const OperatorDashboard = ({ user }) => {
 
   const handleTopUp = async () => {
     if (!selectedCustomer) return;
-
     setIsLoading(true);
     setMessage('');
     try {
@@ -46,14 +44,11 @@ const OperatorDashboard = ({ user }) => {
         customer_id: selectedCustomer.id, 
         amount_to_add: amountToAdd 
       });
-
       if (error) throw error;
-
       setMessage(data.message || 'Operace proběhla úspěšně.');
       setSelectedCustomer(null); 
       setSearchResults([]);
       setSearchQuery('');
-
     } catch (error) {
       setMessage(`Chyba při nabíjení: ${error.message}`);
     } finally {
@@ -61,21 +56,13 @@ const OperatorDashboard = ({ user }) => {
     }
   };
 
-  const selectCustomerForTopUp = (customer) => {
-    setSelectedCustomer(customer);
-    setMessage('');
-  }
-
   const ScannerComponent = () => {
     useEffect(() => {
       let scanner;
       const onScanSuccess = (decodedText, decodedResult) => {
         if (scanner) {
-          scanner.clear().catch(error => {
-            console.error("Failed to clear html5-qrcode-scanner.", error);
-          });
+          scanner.clear().catch(error => { console.error("Failed to clear scanner.", error); });
         }
-
         setIsScanning(false);
         setIsLoading(true);
         setMessage('Zpracovávám QR kód...');
@@ -95,29 +82,22 @@ const OperatorDashboard = ({ user }) => {
         })();
       };
 
-      const onScanFailure = (error) => {
-        // Ignorovat, když se nenajde kód
-      };
-
-      // Zkontrolujeme, jestli už scanner neběží
       if (!scanner) {
         scanner = new Html5QrcodeScanner('qr-reader-container', { 
           qrbox: { width: 250, height: 250 },
           fps: 10,
         }, false);
-        scanner.render(onScanSuccess, onScanFailure);
+        scanner.render(onScanSuccess, (error) => {});
       }
 
       return () => {
-        if (scanner) {
-          scanner.clear().catch(error => {
-            console.error("Failed to clear html5-qrcode-scanner.", error);
-          });
+        if (scanner && scanner.getState() === 2) { // 2 = SCANNING
+           scanner.clear().catch(err => {});
         }
       };
     }, []);
 
-    return <div id="qr-reader-container" style={{width: '100%'}}></div>;
+    return <div id="qr-reader-container" style={{width: '100%', border: '1px solid silver'}}></div>;
   };
 
   if (isScanning) {
@@ -131,6 +111,11 @@ const OperatorDashboard = ({ user }) => {
       </div>
     );
   }
+
+  const selectCustomerForTopUp = (customer) => {
+    setSelectedCustomer(customer);
+    setMessage('');
+  };
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
