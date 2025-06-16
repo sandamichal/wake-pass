@@ -11,7 +11,9 @@ const Layout = ({ user, profile, activeRole, setActiveRole, children }) => {
     }
     return (
       <div style={{ marginTop: '0.5rem' }}>
-        <label htmlFor="role-switcher" style={{ marginRight: '0.5rem', fontSize: '0.875rem' }}>Pohled:</label>
+        <label htmlFor="role-switcher" style={{ marginRight: '0.5rem', fontSize: '0.875rem' }}>
+          Pohled:
+        </label>
         <select 
           id="role-switcher"
           value={activeRole} 
@@ -28,12 +30,34 @@ const Layout = ({ user, profile, activeRole, setActiveRole, children }) => {
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Ahoj, {userName}!</h1>
+      <header style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start', // Zarovnání na začátek
+        marginBottom: '2rem',
+        gap: '1rem' // Přidána mezera mezi elementy
+      }}>
+        {/* Levá část s pozdravem a přepínačem */}
+        <div style={{ flex: '1 1 auto' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, wordBreak: 'break-word' }}>
+            Ahoj, {userName}!
+          </h1>
           <RoleSwitcher />
         </div>
-        <button onClick={() => supabase.auth.signOut()} style={{ fontSize: '0.875rem', color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem' }}>
+        
+        {/* Pravá část s tlačítkem, které se nezmenšuje */}
+        <button 
+          onClick={() => supabase.auth.signOut()} 
+          style={{ 
+            flex: '0 0 auto', // Zabrání zmenšování tlačítka
+            fontSize: '0.875rem', 
+            color: '#4b5563', 
+            background: 'none', 
+            border: 'none', 
+            cursor: 'pointer', 
+            padding: '0.25rem' 
+          }}
+        >
           Odhlásit se
         </button>
       </header>

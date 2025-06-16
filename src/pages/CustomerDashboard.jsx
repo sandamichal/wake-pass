@@ -36,16 +36,15 @@ const CustomerDashboard = ({ user }) => {
   const handleUseEntry = async () => {
     const numericAmountToUse = Number(amountToUse);
     if (numericAmountToUse <= 0 || numericAmountToUse > balance) {
-        setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
-        return;
+      setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
+      return;
     }
     setIsGeneratingQr(true);
     setError(null);
     try {
-      const { data, error: funcError } = await supabase.rpc('create_qr_nonce', { 
-        amount_to_use: numericAmountToUse 
+      const { data, error: funcError } = await supabase.rpc('create_qr_nonce', {
+        amount_to_use: numericAmountToUse,
       });
-
       if (funcError) throw funcError;
       setQrToken(data);
     } catch (err) {
@@ -55,7 +54,7 @@ const CustomerDashboard = ({ user }) => {
       setIsGeneratingQr(false);
     }
   };
-  
+
   const handleCloseQr = () => {
     setQrToken(null);
     fetchPassBalance();
@@ -63,9 +62,9 @@ const CustomerDashboard = ({ user }) => {
 
   if (qrToken) {
     return (
-      <div style={{ background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '1rem' }}>
+      <div style={{ background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ukažte tento kód operátorovi</h2>
-        <p style={{fontSize: '1.5rem', fontWeight: 'bold'}}>Počet hodin k odečtení: {Number(amountToUse).toFixed(1)}</p>
+        <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Počet hodin k odečtení: {Number(amountToUse).toFixed(1)}</p>
         <QRCodeSVG value={qrToken} size={256} style={{ margin: '1rem 0', maxWidth: '80vw', height: 'auto' }} />
         <button onClick={handleCloseQr} style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', fontSize: '1rem', background: '#4b5563', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
           Zavřít
@@ -79,10 +78,10 @@ const CustomerDashboard = ({ user }) => {
     if (loading) {
       return <p>Načítám permanentku...</p>;
     }
-    if (error && !balance) {
+    if (error && balance === null) {
       return <p style={{ color: 'red' }}>{error}</p>;
     }
-    const formattedBalance = Number(balance).toLocaleString('cs-CZ', {minimumFractionDigits: 1, maximumFractionDigits: 1}).replace(/,0$/, '');
+    const formattedBalance = Number(balance).toLocaleString('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/,0$/, '');
     return (
       <>
         <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Váš aktuální zůstatek</p>
@@ -104,7 +103,7 @@ const CustomerDashboard = ({ user }) => {
         <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Použít hodiny</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
           <label htmlFor="amount">Počet hodin:</label>
-          <select id="amount" value={amountToUse} onChange={(e) => setAmountToUse(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', textAlign: 'center' }} >
+          <select id="amount" value={amountToUse} onChange={(e) => setAmountToUse(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', textAlign: 'center' }}>
             {selectOptions.map(option => (<option key={option} value={option}>{option}</option>))}
           </select>
         </div>
