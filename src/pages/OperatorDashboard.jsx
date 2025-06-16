@@ -1,7 +1,7 @@
 // soubor: src/pages/OperatorDashboard.jsx
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import QrScanner from '@yudiel/react-qr-scanner';
+import { QrScanner } from '@yudiel/react-qr-scanner';
 
 const OperatorDashboard = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('');
