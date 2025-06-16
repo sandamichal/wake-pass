@@ -1,9 +1,10 @@
 // soubor: src/pages/OwnerDashboard.jsx
 import React, { useState } from 'react';
-import UserManagement from './UserManagement'; // Importujeme naši novou stránku
+import UserManagement from './UserManagement';
+import Statistics from './Statistics'; // Nový import
 
 const OwnerDashboard = () => {
-  const [view, setView] = useState('menu'); // 'menu' nebo 'user_management'
+  const [view, setView] = useState('menu'); // 'menu', 'user_management', 'statistics'
 
   const buttonStyle = {
     display: 'block',
@@ -23,6 +24,10 @@ const OwnerDashboard = () => {
     return <UserManagement onBack={() => setView('menu')} />;
   }
   
+  if (view === 'statistics') {
+    return <Statistics onBack={() => setView('menu')} />;
+  }
+  
   // Výchozí pohled je menu
   return (
     <div>
@@ -36,9 +41,9 @@ const OwnerDashboard = () => {
         </button>
         <button 
           style={buttonStyle}
-          onClick={() => alert('Tato sekce bude brzy implementována!')}
+          onClick={() => setView('statistics')}
         >
-          Statistiky (již brzy)
+          Statistiky
         </button>
         <button 
           style={buttonStyle}
