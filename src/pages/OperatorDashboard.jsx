@@ -62,31 +62,32 @@ const OperatorDashboard = ({ user }) => {
     }
   };
 
-  const handleScanResult = async (result) => {
-    // Knihovna může volat onDecode vícekrát rychle za sebou,
-    // proto kontrolujeme, jestli už nezpracováváme jiný sken.
-    if (isLoading) return;
+const handleScanResult = async (result) => {
+  // Zabráníme opakovanému zpracování, pokud skener pípne vícekrát
+  if (isLoading) return;
 
-    if (!!result) {
-      setIsScanning(false);
-      setIsLoading(true);
-      setMessage('Zpracovávám QR kód...');
-      try {
-        const nonce = result;
-        const { data, error } = await supabase.rpc('use_entry_with_nonce', {
-          scanned_nonce: nonce,
-        });
+  if (!!result) {
+    setIsScanning(false); // Vypneme skener
+    setIsLoading(true);
+    setMessage('Zpracovávám QR kód...');
+    try {
+      // ZMĚNA ZDE: Voláme RPC funkci místo problematické Edge funkce
+      const { data, error } = await supabase.rpc('use_entry_with_nonce', {
+        scanned_nonce: result,
+      });
 
-        if (error) throw error;
-        setMessage(data.message || 'Vstup úspěšně odečten.');
+      if (error) throw error;
 
-      } catch (err) {
-        setMessage(`Chyba: ${err.message}`);
-      } finally {
-        setIsLoading(false);
-      }
+      setMessage(data.message || 'Vstup úspěšně odečten.');
+
+    } catch (err) {
+      // Zobrazíme chybovou hlášku přímo z databáze
+      setMessage(`Chyba: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
+};
 
   const selectCustomerForTopUp = (customer) => {
     setSelectedCustomer(customer);
