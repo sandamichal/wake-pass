@@ -1,3 +1,4 @@
+// soubor: src/pages/CustomerDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
@@ -8,7 +9,8 @@ const CustomerDashboard = ({ user }) => {
   const [error, setError] = useState(null);
   const [qrToken, setQrToken] = useState(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
-  const [amountToUse, setAmountToUse] = useState(1);
+  // ZMĚNA ZDE: Výchozí stav bude text '1.0', aby odpovídal menu
+  const [amountToUse, setAmountToUse] = useState('1.0'); 
 
   const userName = user.user_metadata?.full_name || user.email;
 
@@ -32,8 +34,8 @@ const CustomerDashboard = ({ user }) => {
   }, [user.id]);
 
   const handleUseEntry = async () => {
+    // ZMĚNA ZDE: Převedeme na číslo až tady, těsně před použitím
     const numericAmountToUse = Number(amountToUse);
-    console.log('Tlačítko kliknuto, odesílám počet:', numericAmountToUse);
     if (numericAmountToUse <= 0 || numericAmountToUse > balance) {
         setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
         return;
@@ -101,21 +103,18 @@ const CustomerDashboard = ({ user }) => {
         <div style={{ backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', marginBottom: '2.5rem' }}>
           {renderBalanceCard()}
         </div>
-
+        
         {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-
+        
         <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Použít hodiny</h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem'}}>
                 <label htmlFor="amount">Počet hodin:</label>
+                {/* ZMĚNA ZDE: Už nepřevádíme na číslo, pracujeme s textem */}
                 <select
                     id="amount"
                     value={amountToUse}
-                    onChange={(e) => {
-                      const newValue = Number(e.target.value);
-                      console.log('Změna v menu, nová hodnota:', newValue);
-                      setAmountToUse(newValue);
-                    }}
+                    onChange={(e) => setAmountToUse(e.target.value)}
                     style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', textAlign: 'center' }}
                 >
                   {selectOptions.map(option => (
@@ -125,8 +124,8 @@ const CustomerDashboard = ({ user }) => {
             </div>
             <button
                 onClick={handleUseEntry}
-                disabled={loading || isGeneratingQr || balance === 0 || amountToUse > balance}
-                style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', cursor: 'pointer', opacity: (loading || isGeneratingQr || balance === 0 || amountToUse > balance) ? 0.5 : 1 }}
+                disabled={loading || isGeneratingQr || balance === 0 || Number(amountToUse) > balance}
+                style={{ width: '100%', background: '#16a34a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold', padding: '1rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', cursor: 'pointer', opacity: (loading || isGeneratingQr || balance === 0 || Number(amountToUse) > balance) ? 0.5 : 1 }}
             >
                 {isGeneratingQr ? 'Generuji kód...' : 'POUŽÍT HODINY (QR KÓD)'}
             </button>
