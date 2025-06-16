@@ -33,6 +33,7 @@ const CustomerDashboard = ({ user }) => {
 
   const handleUseEntry = async () => {
     const numericAmountToUse = Number(amountToUse);
+    console.log('Tlačítko kliknuto, odesílám počet:', numericAmountToUse);
     if (numericAmountToUse <= 0 || numericAmountToUse > balance) {
         setError('Zadaný počet hodin je neplatný nebo vyšší než váš zůstatek.');
         return;
@@ -110,7 +111,11 @@ const CustomerDashboard = ({ user }) => {
                 <select
                     id="amount"
                     value={amountToUse}
-                    onChange={(e) => setAmountToUse(Number(e.target.value))}
+                    onChange={(e) => {
+                      const newValue = Number(e.target.value);
+                      console.log('Změna v menu, nová hodnota:', newValue);
+                      setAmountToUse(newValue);
+                    }}
                     style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', textAlign: 'center' }}
                 >
                   {selectOptions.map(option => (
