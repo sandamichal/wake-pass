@@ -1,4 +1,3 @@
-// soubor: src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import LoginPage from './pages/LoginPage';
@@ -8,7 +7,7 @@ import OperatorDashboard from './pages/OperatorDashboard';
 function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [activeRole, setActiveRole] = useState(null); // Nový stav pro aktivní roli
+  const [activeRole, setActiveRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +36,7 @@ function App() {
       setLoading(true);
       const { data, error } = await supabase
         .from('users')
-        .select(`roles, full_name, avatar_url`) // Načítáme nové pole "roles"
+        .select(`roles, full_name, avatar_url`)
         .eq('id', user.id)
         .single();
 
@@ -45,11 +44,13 @@ function App() {
 
       if (data) {
         setProfile(data);
-        // Nastavíme výchozí aktivní roli na 'customer', pokud ji uživatel má
-        if (data.roles.includes('customer')) {
-          setActiveRole('customer');
+        // NOVÁ LOGIKA: Nastavíme výchozí roli podle hierarchie
+        if (data.roles.includes('owner')) {
+          setActiveRole('owner');
+        } else if (data.roles.includes('operator')) {
+          setActiveRole('operator');
         } else {
-          setActiveRole(data.roles[0]); // Jinak nastavíme první dostupnou roli
+          setActiveRole('customer');
         }
       }
     } catch (error) {
@@ -63,29 +64,30 @@ function App() {
     if (!session || !profile) {
       return <LoginPage />;
     }
-
-    // Zde rozhodujeme podle aktivní role, nikoliv podle role v profilu
+    
     if (activeRole === 'operator' || activeRole === 'owner') {
       return <OperatorDashboard user={session.user} />;
     } else {
       return <CustomerDashboard user={session.user} />;
     }
   };
-
+  
   const RoleSwitcher = () => {
     if (!profile || profile.roles.length <= 1) {
-      return null; // Pokud má uživatel jen jednu roli, menu nezobrazujeme
+      return null;
     }
     return (
       <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 10 }}>
+        <label htmlFor="role-switcher" style={{ marginRight: '0.5rem', fontSize: '0.875rem' }}>Pohled:</label>
         <select 
+          id="role-switcher"
           value={activeRole} 
           onChange={(e) => setActiveRole(e.target.value)}
           style={{ padding: '0.5rem', borderRadius: '0.25rem' }}
         >
           {profile.roles.map(role => (
             <option key={role} value={role}>
-              Pohled: {role}
+              {role}
             </option>
           ))}
         </select>
@@ -94,7 +96,7 @@ function App() {
   };
 
   if (loading) {
-    return <div>Načítání...</div>;
+    return <div style={{padding: '2rem', textAlign: 'center'}}>Načítání...</div>;
   }
 
   return (
