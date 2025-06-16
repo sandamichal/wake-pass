@@ -113,14 +113,7 @@ const OperatorDashboard = ({ user }) => {
   }
 
   return (
-    <div style={{ padding: '1rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Režim Operátora</h1>
-        <button onClick={() => supabase.auth.signOut()} style={{ fontSize: '0.875rem', color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer' }}>
-          Odhlásit se
-        </button>
-      </header>
-
+    <main>
       <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#fffbeb' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>Odebrat hodiny</h2>
         <button onClick={() => setIsScanning(true)} style={{ width: '100%', padding: '0.75rem 1.5rem', background: '#f97316', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '1rem' }}>
@@ -145,7 +138,7 @@ const OperatorDashboard = ({ user }) => {
       {selectedCustomer && ( <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#f9fafb' }}> <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Dobití pro: <span style={{ color: '#3b82f6' }}>{selectedCustomer.full_name}</span></h2><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><input type="number" step="0.5" min="0.5" value={amountToAdd} onChange={(e) => setAmountToAdd(Number(e.target.value))} style={{ padding: '0.5rem', width: '5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db' }} /><span style={{ fontWeight: '500' }}>hodin</span><button onClick={handleTopUp} disabled={isLoading || !amountToAdd || amountToAdd <= 0} style={{ marginLeft: 'auto', padding: '0.75rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', opacity: (isLoading || !amountToAdd || amountToAdd <= 0) ? 0.5 : 1 }}>{isLoading ? 'Pracuji...' : 'Potvrdit Nabití'}</button></div></div>)}
       
       {message && <p style={{ marginTop: '1rem', padding: '1rem', background: '#f3f4f6', borderRadius: '0.25rem' }}>{message}</p>}
-    </div>
+    </main>
   );
 };
 

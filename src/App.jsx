@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import LoginPage from './pages/LoginPage';
 import CustomerDashboard from './pages/CustomerDashboard';
 import OperatorDashboard from './pages/OperatorDashboard';
+import Layout from './components/Layout'; // Důležitý import
 
 function App() {
   const [session, setSession] = useState(null);
@@ -44,7 +45,6 @@ function App() {
 
       if (data) {
         setProfile(data);
-        // NOVÁ LOGIKA: Nastavíme výchozí roli podle hierarchie
         if (data.roles.includes('owner')) {
           setActiveRole('owner');
         } else if (data.roles.includes('operator')) {
@@ -61,47 +61,33 @@ function App() {
   };
 
   const renderContent = () => {
-    if (!session || !profile) {
+    if (!session) {
       return <LoginPage />;
     }
-    
-    if (activeRole === 'operator' || activeRole === 'owner') {
-      return <OperatorDashboard user={session.user} />;
-    } else {
-      return <CustomerDashboard user={session.user} />;
+
+    // Zobrazíme spinner, dokud se nenačte profil
+    if (loading || !profile) {
+      return <div style={{padding: '2rem', textAlign: 'center'}}>Načítání...</div>;
     }
-  };
-  
-  const RoleSwitcher = () => {
-    if (!profile || profile.roles.length <= 1) {
-      return null;
-    }
+
+    const dashboard = activeRole === 'operator' || activeRole === 'owner'
+      ? <OperatorDashboard user={session.user} />
+      : <CustomerDashboard user={session.user} />;
+
     return (
-      <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 10 }}>
-        <label htmlFor="role-switcher" style={{ marginRight: '0.5rem', fontSize: '0.875rem' }}>Pohled:</label>
-        <select 
-          id="role-switcher"
-          value={activeRole} 
-          onChange={(e) => setActiveRole(e.target.value)}
-          style={{ padding: '0.5rem', borderRadius: '0.25rem' }}
-        >
-          {profile.roles.map(role => (
-            <option key={role} value={role}>
-              {role}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Layout 
+        user={session.user} 
+        profile={profile} 
+        activeRole={activeRole} 
+        setActiveRole={setActiveRole}
+      >
+        {dashboard}
+      </Layout>
     );
   };
 
-  if (loading) {
-    return <div style={{padding: '2rem', textAlign: 'center'}}>Načítání...</div>;
-  }
-
   return (
     <div className="App">
-      <RoleSwitcher />
       {renderContent()}
     </div>
   );
