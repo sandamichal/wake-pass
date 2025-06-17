@@ -102,20 +102,47 @@ const ProductManagement = ({ onBack }) => {
       <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Správa Produktů a Ceníku</h2>
       
       {/* Formulář pro přidání/editaci */}
-      <form onSubmit={handleFormSubmit} style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '0.5rem' }}>
+      {/* Formulář pro přidání/editaci */}
+      <form onSubmit={handleFormSubmit} style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '0.5rem', display: 'grid', gap: '0.5rem' }}>
         <h3>{isEditing ? 'Upravit produkt' : 'Přidat nový produkt'}</h3>
-        <input name="name" value={currentProduct.name} onChange={handleInputChange} placeholder="Název produktu" required />
-        <input name="hours_to_add" type="number" step="0.5" value={currentProduct.hours_to_add} onChange={handleInputChange} placeholder="Počet hodin" required />
-        <input name="price_czk" type="number" value={currentProduct.price_czk} onChange={handleInputChange} placeholder="Cena (Kč)" required />
-        <select name="category" value={currentProduct.category} onChange={handleInputChange}>
-          <option value="permanentka">Permanentka</option>
-          <option value="pujcovna">Půjčovna</option>
-          <option value="ostatni">Ostatní</option>
-        </select>
-        {isEditing && <label><input type="checkbox" name="is_active" checked={currentProduct.is_active} onChange={handleInputChange} /> Aktivní</label>}
-        <button type="submit" disabled={loading}>{isEditing ? 'Uložit změny' : 'Přidat produkt'}</button>
-        {isEditing && <button type="button" onClick={resetForm}>Zrušit úpravu</button>}
+        
+        <div>
+          <label htmlFor="name">Název produktu:</label><br/>
+          <input id="name" name="name" value={currentProduct.name} onChange={handleInputChange} placeholder="Např. 10 hodin wake" required style={{width: '100%'}}/>
+        </div>
+
+        <div>
+          <label htmlFor="hours_to_add">Počet připsaných hodin:</label><br/>
+          <input id="hours_to_add" name="hours_to_add" type="number" step="0.5" value={currentProduct.hours_to_add} onChange={handleInputChange} required />
+        </div>
+
+        <div>
+          <label htmlFor="price_czk">Cena (Kč):</label><br/>
+          <input id="price_czk" name="price_czk" type="number" step="1" value={currentProduct.price_czk} onChange={handleInputChange} placeholder="Např. 2000" required />
+        </div>
+        
+        <div>
+          <label htmlFor="category">Kategorie:</label><br/>
+          <select id="category" name="category" value={currentProduct.category} onChange={handleInputChange} style={{width: '100%'}}>
+            <option value="permanentka">Permanentka</option>
+            <option value="pujcovna">Půjčovna</option>
+            <option value="ostatni">Ostatní</option>
+          </select>
+        </div>
+
+        {isEditing && 
+          <label style={{display: 'flex', alignItems: 'center'}}>
+            <input type="checkbox" name="is_active" checked={currentProduct.is_active} onChange={handleInputChange} /> 
+            <span style={{marginLeft: '0.5rem'}}>Aktivní</span>
+          </label>
+        }
+        
+        <div style={{marginTop: '1rem'}}>
+          <button type="submit" disabled={loading} style={{background: '#16a34a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px'}}>{isEditing ? 'Uložit změny' : 'Přidat produkt'}</button>
+          {isEditing && <button type="button" onClick={resetForm} style={{marginLeft: '0.5rem'}}>Zrušit úpravu</button>}
+        </div>
       </form>
+
 
       {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
