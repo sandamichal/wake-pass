@@ -9,9 +9,6 @@ const ProductManagement = ({ onBack }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka', is_active: true });
 
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
-
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -22,37 +19,17 @@ const ProductManagement = ({ onBack }) => {
     try {
       const { data, error } = await supabase.rpc('get_products');
       if (error) throw error;
-      setProducts(data || []);
+      const sorted = (data || []).sort((a, b) => {
+        const categoryCompare = a.category.localeCompare(b.category);
+        if (categoryCompare !== 0) return categoryCompare;
+        return a.name.localeCompare(b.name);
+      });
+      setProducts(sorted);
     } catch (err) {
       setError('Nepodařilo se načíst produkty: ' + err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSort = (field) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const sortedProducts = [...products].sort((a, b) => {
-    const valueA = a[sortField];
-    const valueB = b[sortField];
-    if (typeof valueA === 'number' && typeof valueB === 'number') {
-      return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
-    }
-    return sortDirection === 'asc'
-      ? String(valueA).localeCompare(String(valueB))
-      : String(valueB).localeCompare(String(valueA));
-  });
-
-  const getSortArrow = (field) => {
-    if (field !== sortField) return '';
-    return sortDirection === 'asc' ? ' ▲' : ' ▼';
   };
 
   const handleInputChange = (e) => {
@@ -74,7 +51,6 @@ const ProductManagement = ({ onBack }) => {
           hours_to_add: Number(currentProduct.hours_to_add),
           price_czk: Number(currentProduct.price_czk),
           category: currentProduct.category,
-          is_active: currentProduct.is_active
         });
         if (error) throw error;
       } else {
@@ -173,15 +149,15 @@ const ProductManagement = ({ onBack }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f3f4f6', textAlign: 'left' }}>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>Název{getSortArrow('name')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('hours_to_add')}>Hodiny{getSortArrow('hours_to_add')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('price_czk')}>Cena (Kč){getSortArrow('price_czk')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('category')}>Kategorie{getSortArrow('category')}</th>
+              <th>Název</th>
+              <th>Hodiny</th>
+              <th>Cena (Kč)</th>
+              <th>Kategorie</th>
               <th>Akce</th>
             </tr>
           </thead>
           <tbody>
-            {sortedProducts.map(p => (
+            {products.map(p => (
               <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb', lineHeight: '1.6' }}>
                 <td>{p.name}</td>
                 <td>{p.hours_to_add}</td>
