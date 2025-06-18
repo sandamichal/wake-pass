@@ -8,6 +8,9 @@ const ProductManagement = ({ onBack }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka' });
 
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -90,6 +93,28 @@ const ProductManagement = ({ onBack }) => {
     setCurrentProduct({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka' });
   };
 
+  const handleSort = (field) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedProducts = [...products].sort((a, b) => {
+    const valueA = a[sortField];
+    const valueB = b[sortField];
+
+    if (typeof valueA === 'number' && typeof valueB === 'number') {
+      return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+
+    return sortDirection === 'asc'
+      ? String(valueA).localeCompare(String(valueB))
+      : String(valueB).localeCompare(String(valueA));
+  });
+
   return (
     <div>
       <button onClick={onBack} style={{ marginBottom: '1rem' }}>&larr; Zpět do menu</button>
@@ -133,16 +158,23 @@ const ProductManagement = ({ onBack }) => {
       {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #ccc' }}>
-              <th>Název</th><th>Hodiny</th><th>Cena (Kč)</th><th>Kategorie</th><th>Akce</th>
+            <tr style={{ backgroundColor: '#f3f4f6', textAlign: 'left' }}>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>Název</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('hours_to_add')}>Hodiny</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('price_czk')}>Cena (Kč)</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('category')}>Kategorie</th>
+              <th>Akce</th>
             </tr>
           </thead>
           <tbody>
-            {products.map(p => (
-              <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td>{p.name}</td><td>{p.hours_to_add}</td><td>{p.price_czk}</td><td>{p.category}</td>
+            {sortedProducts.map(p => (
+              <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb', lineHeight: '1.6' }}>
+                <td>{p.name}</td>
+                <td>{p.hours_to_add}</td>
+                <td>{p.price_czk}</td>
+                <td>{p.category}</td>
                 <td>
                   <button onClick={() => handleEditClick(p)}>Upravit</button>
                   <button onClick={() => handleDeleteClick(p.id)} style={{ color: 'red', marginLeft: '0.5rem' }}>Smazat</button>
