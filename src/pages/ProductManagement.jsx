@@ -1,3 +1,4 @@
+// src/pages/ProductManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -6,7 +7,7 @@ const ProductManagement = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka' });
+  const [currentProduct, setCurrentProduct] = useState({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka', is_active: true });
 
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -29,11 +30,36 @@ const ProductManagement = ({ onBack }) => {
     }
   };
 
+  const handleSort = (field) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedProducts = [...products].sort((a, b) => {
+    const valueA = a[sortField];
+    const valueB = b[sortField];
+    if (typeof valueA === 'number' && typeof valueB === 'number') {
+      return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+    return sortDirection === 'asc'
+      ? String(valueA).localeCompare(String(valueB))
+      : String(valueB).localeCompare(String(valueA));
+  });
+
+  const getSortArrow = (field) => {
+    if (field !== sortField) return '';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+  };
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setCurrentProduct(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -47,7 +73,8 @@ const ProductManagement = ({ onBack }) => {
           name: currentProduct.name,
           hours_to_add: Number(currentProduct.hours_to_add),
           price_czk: Number(currentProduct.price_czk),
-          category: currentProduct.category
+          category: currentProduct.category,
+          is_active: currentProduct.is_active
         });
         if (error) throw error;
       } else {
@@ -74,7 +101,7 @@ const ProductManagement = ({ onBack }) => {
   };
 
   const handleDeleteClick = async (productId) => {
-    if (window.confirm('Opravdu chcete tento produkt trvale smazat?')) {
+    if (window.confirm('Opravdu chcete tento produkt smazat?')) {
       setLoading(true);
       try {
         const { error } = await supabase.rpc('delete_product', { product_id: productId });
@@ -90,30 +117,8 @@ const ProductManagement = ({ onBack }) => {
 
   const resetForm = () => {
     setIsEditing(false);
-    setCurrentProduct({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka' });
+    setCurrentProduct({ id: null, name: '', hours_to_add: 0, price_czk: 0, category: 'permanentka', is_active: true });
   };
-
-  const handleSort = (field) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const sortedProducts = [...products].sort((a, b) => {
-    const valueA = a[sortField];
-    const valueB = b[sortField];
-
-    if (typeof valueA === 'number' && typeof valueB === 'number') {
-      return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
-    }
-
-    return sortDirection === 'asc'
-      ? String(valueA).localeCompare(String(valueB))
-      : String(valueB).localeCompare(String(valueA));
-  });
 
   return (
     <div>
@@ -124,28 +129,35 @@ const ProductManagement = ({ onBack }) => {
         <h3>{isEditing ? 'Upravit produkt' : 'Přidat nový produkt'}</h3>
 
         <div>
-          <label htmlFor="name">Název produktu:</label><br/>
+          <label htmlFor="name">Název produktu:</label><br />
           <input id="name" name="name" value={currentProduct.name} onChange={handleInputChange} placeholder="Např. 10 hodin wake" required style={{ width: '100%' }} />
         </div>
 
         <div>
-          <label htmlFor="hours_to_add">Počet připsaných hodin:</label><br/>
+          <label htmlFor="hours_to_add">Počet připsaných hodin:</label><br />
           <input id="hours_to_add" name="hours_to_add" type="number" step="0.5" value={currentProduct.hours_to_add} onChange={handleInputChange} required />
         </div>
 
         <div>
-          <label htmlFor="price_czk">Cena (Kč):</label><br/>
-          <input id="price_czk" name="price_czk" type="number" step="1" value={currentProduct.price_czk} onChange={handleInputChange} required />
+          <label htmlFor="price_czk">Cena (Kč):</label><br />
+          <input id="price_czk" name="price_czk" type="number" step="1" value={currentProduct.price_czk} onChange={handleInputChange} placeholder="Např. 2000" required />
         </div>
 
         <div>
-          <label htmlFor="category">Kategorie:</label><br/>
+          <label htmlFor="category">Kategorie:</label><br />
           <select id="category" name="category" value={currentProduct.category} onChange={handleInputChange} style={{ width: '100%' }}>
             <option value="permanentka">Permanentka</option>
             <option value="pujcovna">Půjčovna</option>
             <option value="ostatni">Ostatní</option>
           </select>
         </div>
+
+        {isEditing &&
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            <input type="checkbox" name="is_active" checked={currentProduct.is_active} onChange={handleInputChange} />
+            <span style={{ marginLeft: '0.5rem' }}>Aktivní</span>
+          </label>
+        }
 
         <div style={{ marginTop: '1rem' }}>
           <button type="submit" disabled={loading} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px' }}>
@@ -161,10 +173,10 @@ const ProductManagement = ({ onBack }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f3f4f6', textAlign: 'left' }}>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>Název</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('hours_to_add')}>Hodiny</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('price_czk')}>Cena (Kč)</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('category')}>Kategorie</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>Název{getSortArrow('name')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('hours_to_add')}>Hodiny{getSortArrow('hours_to_add')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('price_czk')}>Cena (Kč){getSortArrow('price_czk')}</th>
+              <th style={{ cursor: 'pointer' }} onClick={() => handleSort('category')}>Kategorie{getSortArrow('category')}</th>
               <th>Akce</th>
             </tr>
           </thead>
