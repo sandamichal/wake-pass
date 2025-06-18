@@ -50,8 +50,10 @@ const ProductManagement = ({ onBack }) => {
           name: currentProduct.name,
           hours_to_add: Number(currentProduct.hours_to_add),
           price_czk: Number(currentProduct.price_czk),
-          category: currentProduct.category,
+          category: currentProduct.category
+          // is_active NEPOSÍLAT!
         });
+
         if (error) throw error;
       } else {
         const { error } = await supabase.rpc('add_product', {
