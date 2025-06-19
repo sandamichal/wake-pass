@@ -91,6 +91,8 @@ const OperatorDashboard = ({ user }) => {
         payment_method: paymentMethod,
       });
       if (error) throw error;
+        setMessage(data.message);
+      if (error) throw error;
       setMessage(data.message || 'Operace proběhla úspěšně.');
       setSelectedCustomer(null);
       setSearchResults([]);
