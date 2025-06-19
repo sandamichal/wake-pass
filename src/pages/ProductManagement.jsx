@@ -51,8 +51,8 @@ const ProductManagement = ({ onBack }) => {
           hours_to_add: Number(currentProduct.hours_to_add),
           price_czk: Number(currentProduct.price_czk),
           category: currentProduct.category
-          // is_active NEPOSÍLAT!
         });
+
 
         if (error) throw error;
       } else {
