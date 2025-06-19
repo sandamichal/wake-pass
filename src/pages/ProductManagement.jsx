@@ -57,7 +57,8 @@ const ProductManagement = ({ onBack }) => {
           name: currentProduct.name,
           hours_to_add: Number(currentProduct.hours_to_add),
           price_czk: Number(currentProduct.price_czk),
-          category: currentProduct.category,
+          category: currentProduct.category
+          // ⛔ NEPOSÍLAT NIC NAVÍC!
         });
         if (error) throw error;
       } else {
