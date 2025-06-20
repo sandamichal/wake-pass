@@ -54,7 +54,7 @@ const OperatorDashboard = ({ user }) => {
           `ACC:${bankAccount}`,
           `AM:${amount}`,
           'CC:CZK',
-          `MSG:Dobiti permanentky pro ${selectedCustomer.full_name}`
+          `MSG:Permanentka pro ${selectedCustomer.full_name}`
         ].join('*');
         setPaymentQrString(spaydString);
       }
