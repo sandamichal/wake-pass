@@ -215,6 +215,17 @@ const OperatorDashboard = ({ user }) => {
                   </div>
                 </div>
               )}
+              <pre style={{
+                marginTop: '1rem',
+                padding: '0.5rem',
+                background: '#f9f9f9',
+                fontSize: '0.75rem',
+                textAlign: 'left',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {paymentQrString}
+              </pre>
+
               <button onClick={handleTopUp} disabled={isLoading} style={{ width: '100%', padding: '0.75rem 1.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '1rem' }}>
                 {isLoading ? 'Pracuji...' : `Potvrdit platbu (${paymentMethod === 'cash' ? 'hotově' : 'QR'}) a Nabít`}
               </button>
