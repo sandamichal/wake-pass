@@ -46,13 +46,23 @@ const OperatorDashboard = ({ user }) => {
     if (paymentMethod === 'qr_code' && selectedCustomer && selectedProductId) {
       const product = products.find(p => p.id === selectedProductId);
       if (product && bankAccount) {
-        const spaydString = `SPD*1.0*ACC:${bankAccount}*AM:${product.price_czk}*MSG:Dobiti permanentky pro ${selectedCustomer.email}`;
+        // formátujeme částku na dvě desetinná místa
+        const amount = Number(product.price_czk).toFixed(2);
+        // SPAYD string podle spec: SPD*1.0*ACC:<účet>*AM:<částka>*CC:CZK*MSG:<zpráva>*
+        const spaydString = [
+          'SPD*1.0',
+          `ACC:${bankAccount}`,
+          `AM:${amount}`,
+          'CC:CZK',
+          `MSG:Dobiti permanentky pro ${selectedCustomer.full_name}`
+        ].join('*') + '*';
         setPaymentQrString(spaydString);
       }
     } else {
       setPaymentQrString('');
     }
   }, [paymentMethod, selectedCustomer, selectedProductId, products, bankAccount]);
+
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
