@@ -5,6 +5,13 @@ const ProductManagement = ({ onBack }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // --- new state for bank account management ---
+  const [bankAccount, setBankAccount] = useState('');
+  const [loadingAccount, setLoadingAccount] = useState(false);
+  const [accountMessage, setAccountMessage] = useState('');
+  const [accountError, setAccountError] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState({
     id: null,
@@ -16,6 +23,7 @@ const ProductManagement = ({ onBack }) => {
 
   useEffect(() => {
     fetchProducts();
+    fetchBankAccount();
   }, []);
 
   const fetchProducts = async () => {
@@ -39,6 +47,50 @@ const ProductManagement = ({ onBack }) => {
     }
   };
 
+  // --- fetch current bank account from system_settings ---
+  const fetchBankAccount = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', 'bank_account_number')
+        .single();
+      if (error && error.code !== 'PGRST116') throw error; // ignore "no rows" if not set
+      if (data) {
+        setBankAccount(data.setting_value);
+      }
+    } catch (err) {
+      console.error('Chyba při načítání bankovního účtu:', err);
+    }
+  };
+
+  // --- save bank account ---
+  const handleSaveBankAccount = async () => {
+    setLoadingAccount(true);
+    setAccountMessage('');
+    setAccountError(false);
+
+    // sanitize: remove spaces, uppercase
+    const sanitized = bankAccount.replace(/\s+/g, '').toUpperCase();
+
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .upsert({
+          setting_key: 'bank_account_number',
+          setting_value: sanitized,
+        });
+      if (error) throw error;
+
+      setAccountMessage('Bankovní účet úspěšně uložen.');
+    } catch (err) {
+      setAccountError(true);
+      setAccountMessage('Chyba při ukládání účtu: ' + err.message);
+    } finally {
+      setLoadingAccount(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCurrentProduct((prev) => ({
@@ -57,8 +109,7 @@ const ProductManagement = ({ onBack }) => {
           name: currentProduct.name,
           hours_to_add: Number(currentProduct.hours_to_add),
           price_czk: Number(currentProduct.price_czk),
-          category: currentProduct.category
-          // ⛔ NEPOSÍLAT NIC NAVÍC!
+          category: currentProduct.category,
         });
         if (error) throw error;
       } else {
@@ -116,6 +167,58 @@ const ProductManagement = ({ onBack }) => {
       <button onClick={onBack} style={{ marginBottom: '1rem' }}>&larr; Zpět do menu</button>
       <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Správa Produktů a Ceníku</h2>
 
+      {/* ---- Bank account management ---- */}
+      <div
+        style={{
+          marginBottom: '2rem',
+          padding: '1rem',
+          border: '1px solid #ccc',
+          borderRadius: '0.5rem',
+          background: '#fbfbfb',
+        }}
+      >
+        <h3 style={{ marginBottom: '0.5rem' }}>Správa bankovního účtu (SPAYD)</h3>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="IBAN (např. CZ5401000000001111111111)"
+            value={bankAccount}
+            onChange={(e) => setBankAccount(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '0.5rem',
+              borderRadius: '0.25rem',
+              border: '1px solid #d1d5db',
+            }}
+          />
+          <button
+            onClick={handleSaveBankAccount}
+            disabled={loadingAccount}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.25rem',
+              cursor: 'pointer',
+            }}
+          >
+            {loadingAccount ? 'Ukládám…' : 'Uložit účet'}
+          </button>
+        </div>
+        {accountMessage && (
+          <div
+            style={{
+              marginTop: '0.5rem',
+              color: accountError ? 'red' : 'green',
+            }}
+          >
+            {accountMessage}
+          </div>
+        )}
+      </div>
+
+      {/* ---- Product form ---- */}
       <form
         onSubmit={handleFormSubmit}
         style={{
