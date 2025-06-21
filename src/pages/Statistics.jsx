@@ -1,7 +1,8 @@
-// soubor: src/pages/Statistics.jsx
+// src/pages/Statistics.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
+// Jedna kartička se statistikou
 const StatCard = ({ title, value, unit }) => {
   const cardStyle = {
     background: 'white',
@@ -22,15 +23,16 @@ const StatCard = ({ title, value, unit }) => {
 
   return (
     <div style={cardStyle}>
-      <div style={valueStyle}>{value} <span style={{fontSize: '1.5rem'}}>{unit}</span></div>
+      <div style={valueStyle}>
+        {value} {unit && <span style={{ fontSize: '1.5rem' }}>{unit}</span>}
+      </div>
       <div style={titleStyle}>{title}</div>
     </div>
   );
 };
 
-
 const Statistics = ({ onBack }) => {
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(null);    // objekt { total_customers, total_operators, ... }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -39,15 +41,27 @@ const Statistics = ({ onBack }) => {
       setLoading(true);
       setError('');
       try {
-        const { data, error: rpcError } = await supabase.rpc('get_owner_stats');
+        // Zavoláme RPC, které vrací pole s jedním řádkem
+        const { data: statsArray, error: rpcError } = await supabase.rpc('get_owner_stats');
         if (rpcError) throw rpcError;
-        setStats(data);
+
+        // Z pole vyjmeme první (a jediný) objekt
+        const row = Array.isArray(statsArray) ? statsArray[0] : statsArray;
+
+        // Nastavíme hodnoty, nebo 0 pokud chybí
+        setStats({
+          total_customers: row?.total_customers ?? 0,
+          total_operators: row?.total_operators ?? 0,
+          total_hours_sold: row?.total_hours_sold ?? 0,
+          total_hours_used: row?.total_hours_used ?? 0,
+        });
       } catch (err) {
         setError('Nepodařilo se načíst statistiky: ' + err.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchStats();
   }, []);
 
@@ -64,13 +78,29 @@ const Statistics = ({ onBack }) => {
       <button onClick={onBack} style={{ marginBottom: '1rem' }}>
         &larr; Zpět do menu
       </button>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>Přehled a Statistiky</h2>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-        <StatCard title="Celkem Zákazníků" value={stats.total_customers} />
-        <StatCard title="Celkem Operátorů" value={stats.total_operators} />
-        <StatCard title="Prodaných Hodin" value={Number(stats.total_hours_sold).toLocaleString('cs-CZ')} unit="hod" />
-        <StatCard title="Použitých Hodin" value={Number(stats.total_hours_used).toLocaleString('cs-CZ')} unit="hod" />
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
+        Přehled a Statistiky
+      </h2>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '1rem',
+        }}
+      >
+        <StatCard title="Celkem Zákazníků" value={stats.total_customers} unit="" />
+        <StatCard title="Celkem Operátorů" value={stats.total_operators} unit="" />
+        <StatCard
+          title="Prodaných Hodin"
+          value={Number(stats.total_hours_sold).toLocaleString('cs-CZ')}
+          unit="hod"
+        />
+        <StatCard
+          title="Použitých Hodin"
+          value={Number(stats.total_hours_used).toLocaleString('cs-CZ')}
+          unit="hod"
+        />
       </div>
     </div>
   );
