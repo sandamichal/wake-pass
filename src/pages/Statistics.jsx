@@ -1,115 +1,110 @@
-// src/pages/Statistics.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import debounce from 'lodash.debounce';
 import { supabase } from '../supabaseClient';
 
-const StatCard = ({ title, value, unit }) => (
-  <div style={{
-    background: 'white',
-    padding: '1.5rem',
-    borderRadius: '0.5rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-    textAlign: 'center',
-  }}>
-    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#3b82f6' }}>
-      {value}{unit && <span style={{ fontSize: '1.5rem' }}> {unit}</span>}
-    </div>
-    <div style={{ fontSize: '1rem', color: '#6b7280' }}>{title}</div>
-  </div>
-);
+export default function Statistics() {
+  // Výchozí dnešní datum ve formátu YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
 
-const TYPE_OPTIONS = [
-  { value: 'topup', label: 'Nabití permanentky' },
-  { value: 'usage', label: 'Použití permanentky' },
-];
+  // Stavy pro filtr
+  const [from, setFrom]   = useState(today);
+  const [to,   setTo]     = useState(today);
+  const [types, setTypes] = useState([]); // např. ['topup','usage']
 
-const Statistics = ({ onBack }) => {
-  // 1) Výchozí dnešní datum
-  const today = new Date().toISOString().slice(0,10);
-  const [startDate, setStartDate] = useState(today);
-  const [endDate,   setEndDate]   = useState(today);
+  // Stavy pro data a načítání
+  const [stats, setStats]         = useState(null);
+  const [txs, setTxs]             = useState([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [loadingTxs, setLoadingTxs]     = useState(false);
+  const [errorStats, setErrorStats]     = useState('');
+  const [errorTxs, setErrorTxs]         = useState('');
 
-  // 2) Vícevýběr typu transakcí
-  const [typeFilter, setTypeFilter] = useState(TYPE_OPTIONS.map(o=>o.value));
+  // Debounced fetch pro statistiky
+  const fetchStats = useCallback(
+    debounce(async (f, t) => {
+      setLoadingStats(true);
+      setErrorStats('');
+      try {
+        const { data, error } = await supabase
+          .rpc('get_owner_stats', { _start_date: f, _end_date: t });
 
-  // 3) Data a stav
-  const [stats, setStats]             = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
+        if (error) throw error;
+        setStats(data[0] || null);
+      } catch (err) {
+        setErrorStats(err.message);
+      } finally {
+        setLoadingStats(false);
+      }
+    }, 300),
+    []
+  );
 
-  // Načtení statistik
-  const fetchStats = async () => {
-    const { data, error: rpcError } = await supabase
-      .rpc('get_owner_stats', { _start_date: startDate, _end_date: endDate });
-    if (rpcError) throw rpcError;
-    setStats(data);
-  };
+  // Debounced fetch pro transakce
+  const fetchTxs = useCallback(
+    debounce(async (f, t, ty) => {
+      setLoadingTxs(true);
+      setErrorTxs('');
+      try {
+        const { data, error } = await supabase
+          .rpc('get_owner_transactions', {
+            _start_date: f,
+            _end_date:   t,
+            _types:      ty.length ? ty : null
+          });
+        if (error) throw error;
+        setTxs(data || []);
+      } catch (err) {
+        setErrorTxs(err.message);
+      } finally {
+        setLoadingTxs(false);
+      }
+    }, 300),
+    []
+  );
 
-  // Načtení transakcí
-  const fetchTransactions = async () => {
-    const params = {
-      _start_date: startDate,
-      _end_date:   endDate,
-      _types:      typeFilter.length === 2 ? null : typeFilter
-    };
-    const { data, error: rpcError } = await supabase
-      .rpc('get_owner_transactions', params);
-    if (rpcError) throw rpcError;
-    setTransactions(data);
-  };
-
-  // Kdykoliv se změní filtr, data, načti znovu
+  // Pokaždé, když se změní filtr, načteme znovu
   useEffect(() => {
-    setError('');
-    setLoading(true);
-    Promise.all([ fetchStats(), fetchTransactions() ])
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [startDate, endDate, typeFilter]);
-
-  if (loading) return <div>Načítám…</div>;
-  if (error)   return <div style={{ color: 'red' }}>{error}</div>;
-  if (!stats)  return null;
-
-  // Formát datumu + času
-  const fmtDateTime = dt => {
-    const d = new Date(dt);
-    const date = d.toLocaleDateString('cs-CZ', { day:'2-digit',month:'2-digit',year:'numeric' });
-    const time = d.toLocaleTimeString('cs-CZ', { hour:'2-digit',minute:'2-digit' });
-    return `${date} ${time}`;
-  };
-
-  // Změna typu ve vícenásobném selectu
-  const handleTypeChange = e => {
-    setTypeFilter(Array.from(e.target.selectedOptions).map(o=>o.value));
-  };
+    fetchStats(from, to);
+    fetchTxs(from, to, types);
+  }, [from, to, types, fetchStats, fetchTxs]);
 
   return (
     <div style={{ padding: '1rem' }}>
-      <button onClick={onBack} style={{ marginBottom: '1rem' }}>
-        ← Zpět do menu
-      </button>
-      <h2 style={{ marginBottom: '1rem' }}>Přehled a Statistiky</h2>
+      <h2>Přehled a Statistiky</h2>
 
-      {/* Filtry */}
-      <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+      {/* Filtr */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <label>
-          Od: <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}/> 
+          Od:
+          <input
+            type="date"
+            value={from}
+            onChange={e => setFrom(e.target.value)}
+            style={{ marginLeft: '0.5rem' }}
+          />
         </label>
         <label>
-          Do: <input type="date" value={endDate}   onChange={e=>setEndDate(e.target.value)}/>
+          Do:
+          <input
+            type="date"
+            value={to}
+            onChange={e => setTo(e.target.value)}
+            style={{ marginLeft: '0.5rem' }}
+          />
         </label>
-        <label style={{ display: 'flex', flexDirection: 'column' }}>
+        <label>
           Typ transakce:
-          <select 
-            multiple size={2} 
-            value={typeFilter} 
-            onChange={handleTypeChange}
-            style={{ marginTop: '0.25rem' }}
+          <select
+            multiple
+            value={types}
+            onChange={e => {
+              const vals = Array.from(e.target.selectedOptions).map(o => o.value);
+              setTypes(vals);
+            }}
+            style={{ marginLeft: '0.5rem', minWidth: '160px', height: '4.5rem' }}
           >
-            {TYPE_OPTIONS.map(o=>(
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
+            <option value="topup">Nabití permanentky</option>
+            <option value="usage">Použití permanentky</option>
           </select>
         </label>
       </div>
@@ -117,58 +112,101 @@ const Statistics = ({ onBack }) => {
       {/* Statistické karty */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
+        gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))',
         gap: '1rem',
-        marginBottom: '2rem'
+        marginTop: '1.5rem'
       }}>
-        <StatCard title="Celkem zákazníků" value={stats.total_customers}/>
-        <StatCard title="Celkem operátorů" value={stats.total_operators}/>
-        <StatCard title="Prodáno hodin"   value={stats.sold_hours} unit="hod"/>
-        <StatCard title="Použito hodin"   value={stats.used_hours} unit="hod"/>
+        <div style={cardStyle}>
+          <div style={valueStyle}>
+            {loadingStats ? '…' : stats?.total_customers ?? 0}
+          </div>
+          <div style={titleStyle}>Celkem zákazníků</div>
+          {errorStats && <div style={errStyle}>{errorStats}</div>}
+        </div>
+
+        <div style={cardStyle}>
+          <div style={valueStyle}>
+            {loadingStats ? '…' : stats?.total_operators ?? 0}
+          </div>
+          <div style={titleStyle}>Celkem operátorů</div>
+          {errorStats && <div style={errStyle}>{errorStats}</div>}
+        </div>
+
+        <div style={cardStyle}>
+          <div style={valueStyle}>
+            {loadingStats ? '…' : `${stats?.sold_hours ?? 0} hod`}
+          </div>
+          <div style={titleStyle}>Prodáno hodin</div>
+          {errorStats && <div style={errStyle}>{errorStats}</div>}
+        </div>
+
+        <div style={cardStyle}>
+          <div style={valueStyle}>
+            {loadingStats ? '…' : `${stats?.used_hours ?? 0} hod`}
+          </div>
+          <div style={titleStyle}>Použito hodin</div>
+          {errorStats && <div style={errStyle}>{errorStats}</div>}
+        </div>
       </div>
 
       {/* Tabulka transakcí */}
-      <table style={{ width:'100%', borderCollapse:'collapse' }}>
-        <thead>
-          <tr style={{ borderBottom:'2px solid #ccc' }}>
-            <th style={{ textAlign:'left', padding:'0.5rem' }}>Čas</th>
-            <th style={{ textAlign:'left', padding:'0.5rem' }}>Typ</th>
-            <th style={{ textAlign:'right', padding:'0.5rem' }}>Hodiny</th>
-            <th style={{ textAlign:'left', padding:'0.5rem' }}>Uživatel</th>
-          </tr>
-        </thead>
-        <tbody>
-          {transactions.length === 0 && (
+      <h3 style={{ marginTop: '2rem' }}>Seznam transakcí</h3>
+      {loadingTxs && <p>Načítám transakce…</p>}
+      {errorTxs && <p style={errStyle}>Chyba: {errorTxs}</p>}
+
+      {!loadingTxs && !errorTxs && (
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+          <thead>
             <tr>
-              <td colSpan={4} style={{ padding:'1rem', textAlign:'center', color:'#666' }}>
-                Žádné transakce pro zvolený filtr.
-              </td>
+              <th style={thStyle}>Čas</th>
+              <th style={thStyle}>Typ</th>
+              <th style={thStyle}>Hodiny</th>
+              <th style={thStyle}>Uživatel</th>
             </tr>
-          )}
-          {transactions.map(tx => {
-            const isTopup = tx.type === 'topup';
-            const label   = isTopup ? 'Nabití permanentky' : 'Použití permanentky';
-            const amt     = isTopup ? `+${tx.amount}` : `${Math.abs(tx.amount)}`;
-            return (
-              <tr key={tx.id} style={{ borderBottom:'1px solid #eee' }}>
-                <td style={{ padding:'0.5rem' }}>{fmtDateTime(tx.created_at)}</td>
-                <td style={{ padding:'0.5rem' }}>{label}</td>
-                <td style={{
-                  padding:'0.5rem',
-                  textAlign:'right',
-                  color: isTopup ? 'green' : 'red',
-                  fontWeight:'bold'
-                }}>
-                  {amt}
+          </thead>
+          <tbody>
+            {txs.map(t => (
+              <tr key={t.id}>
+                <td style={tdStyle}>
+                  {new Date(t.created_at).toLocaleString('cs-CZ', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })}
                 </td>
-                <td style={{ padding:'0.5rem' }}>{tx.full_name}</td>
+                <td style={tdStyle}>
+                  {t.type === 'topup'
+                    ? 'Nabití permanentky'
+                    : 'Použití permanentky'}
+                </td>
+                <td style={{
+                  ...tdStyle,
+                  color:  t.type === 'usage' ? 'red' : 'green',
+                  fontWeight: 'bold'
+                }}>
+                  {t.type === 'usage'
+                    ? `-${Math.abs(t.amount)}`
+                    : `+${t.amount}`}
+                </td>
+                <td style={tdStyle}>{t.full_name}</td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
-};
+}
 
-export default Statistics;
+// --- Stylování (můžete přesunout do CSS) ---
+const cardStyle = {
+  background: 'white',
+  padding: '1rem',
+  borderRadius: '0.5rem',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+  textAlign: 'center'
+};
+const valueStyle = { fontSize: '2rem', fontWeight: 'bold', color: '#3b82f6' };
+const titleStyle = { fontSize: '0.9rem', color: '#6b7280', marginTop: '0.25rem' };
+const thStyle = { borderBottom: '1px solid #ddd', padding: '0.5rem', textAlign: 'left' };
+const tdStyle = { borderBottom: '1px solid #eee', padding: '0.5rem' };
+const errStyle = { color: 'red', marginTop: '0.5rem' };
