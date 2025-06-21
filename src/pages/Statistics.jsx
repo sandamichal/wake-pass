@@ -4,140 +4,97 @@ import { supabase } from '../supabaseClient';
 
 const StatCard = ({ title, value, unit }) => (
   <div style={{
-    background: 'white',
-    padding: '1.5rem',
-    borderRadius: '0.5rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-    textAlign: 'center',
-  }}>
+      background: 'white',
+      padding: '1.5rem',
+      borderRadius: '0.5rem',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+      textAlign: 'center',
+    }}>
     <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#3b82f6' }}>
-      {value}{unit && <span style={{ fontSize: '1.5rem' }}> {unit}</span>}
+      {value} {unit && <span style={{ fontSize: '1.5rem' }}>{unit}</span>}
     </div>
     <div style={{ fontSize: '1rem', color: '#6b7280' }}>{title}</div>
   </div>
 );
 
 const Statistics = ({ onBack }) => {
-  // default na dnešní datum YYYY-MM-DD
+  // 1) výchozí dnešní datum ve formátu YYYY-MM-DD
   const today = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate]   = useState(today);
 
-  // stavy pro statistiky
-  const [stats, setStats]         = useState(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [errorStats, setErrorStats]     = useState('');
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
 
-  // stavy pro transakce
-  const [txs, setTxs]             = useState([]);
-  const [loadingTx, setLoadingTx] = useState(true);
-  const [errorTx, setErrorTx]     = useState('');
+  // 2) funkce pro volání RPC s parametry
+  const fetchStats = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: rpcError } = await supabase
+        .rpc('get_owner_stats', {
+          _start_date: startDate,
+          _end_date: endDate,
+        });
+      if (rpcError) throw rpcError;
+      setStats(data);
+    } catch (err) {
+      console.error('get_owner_stats RPC error', err);
+      setError('Nepodařilo se načíst statistiky: ' + err.message);
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // filtry
-  const [startDate, setStartDate]     = useState(today);
-  const [endDate,   setEndDate]       = useState(today);
-  const [selectedTypes, setSelectedTypes] = useState(['topup','usage']);
-
-  // 1) Načtení statistik
+  // 3) znovu načíst vždy, když se změní datum
   useEffect(() => {
-    setLoadingStats(true);
-    setErrorStats('');
-    supabase.rpc('get_owner_stats', { start_date: startDate, end_date: endDate })
-      .then(({ data, error }) => {
-        if (error) throw error;
-        setStats(data[0]);
-      })
-      .catch(e => setErrorStats('Chyba při načítání statistik: ' + e.message))
-      .finally(() => setLoadingStats(false));
+    fetchStats();
   }, [startDate, endDate]);
 
-  // 2) Načtení transakcí
-  useEffect(() => {
-    setLoadingTx(true);
-    setErrorTx('');
-    supabase.rpc('get_owner_transactions', { start_date: startDate, end_date: endDate })
-      .then(({ data, error }) => {
-        if (error) throw error;
-        setTxs(data);
-      })
-      .catch(e => setErrorTx('Chyba při načítání transakcí: ' + e.message))
-      .finally(() => setLoadingTx(false));
-  }, [startDate, endDate]);
-
-  // 3) Aplikace typového filtru
-  const filteredTx = txs.filter(tx => selectedTypes.includes(tx.type));
+  // 4) loading / error stav
+  if (loading) return <div>Načítám statistiky…</div>;
+  if (error)   return <div style={{ color: 'red' }}>{error}</div>;
+  if (!stats)  return null;
 
   return (
     <div style={{ padding: '1rem' }}>
-      {/* -- OPRAVA #1: Jen jediné tlačítko zpět */}
       <button onClick={onBack} style={{ marginBottom: '1rem' }}>
         ← Zpět do menu
       </button>
+      <h2 style={{ marginBottom: '1rem' }}>Přehled a Statistiky</h2>
 
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-        Přehled a Statistiky
-      </h2>
-
-      {/* -- Filtry */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '1rem',
-        marginBottom: '1.5rem',
-        alignItems: 'center'
-      }}>
+      <div style={{ marginBottom: '2rem' }}>
         <label>
-          Od:&nbsp;
+          Od:{' '}
           <input
             type="date"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
           />
         </label>
-        <label>
-          Do:&nbsp;
+        <label style={{ marginLeft: '1rem' }}>
+          Do:{' '}
           <input
             type="date"
             value={endDate}
             onChange={e => setEndDate(e.target.value)}
           />
         </label>
-        <label style={{ display: 'flex', flexDirection: 'column' }}>
-          Typ transakce:
-          <select
-            multiple
-            size={2}
-            value={selectedTypes}
-            onChange={e =>
-              setSelectedTypes(Array.from(
-                e.target.selectedOptions,
-                o => o.value
-              ))
-            }
-            style={{ minWidth: '180px', marginTop: '0.25rem' }}
-          >
-            <option value="topup">Nabití permanentky</option>
-            <option value="usage">Použití permanentky</option>
-          </select>
-        </label>
       </div>
 
-      {/* -- Statistiky */}
-      {errorStats && <div style={{ color: 'red', marginBottom: '1rem' }}>{errorStats}</div>}
-      {loadingStats
-        ? <div>Načítám statistiky…</div>
-        : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
-            gap: '1rem',
-            marginBottom: '2rem'
-          }}>
-            <StatCard title="Celkem zákazníků" value={stats.total_customers} />
-            <StatCard title="Celkem operátorů" value={stats.total_operators} />
-            <StatCard title="Prodáno hodin" value={stats.sold_hours} unit="hod" />
-            <StatCard title="Použito hodin" value={stats.used_hours} unit="hod" />
-          </div>
-        )
-      }
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
+        gap: '1rem',
+        marginBottom: '2rem'
+      }}>
+        <StatCard title="Celkem zákazníků" value={stats.total_customers} />
+        <StatCard title="Celkem operátorů" value={stats.total_operators} />
+        <StatCard title="Prodáno hodin"   value={stats.sold_hours} unit="hod" />
+        <StatCard title="Použito hodin"   value={stats.used_hours} unit="hod" />
+      </div>
 
       {/* -- Tabulka transakcí */}
       {errorTx && <div style={{ color: 'red' }}>{errorTx}</div>}
