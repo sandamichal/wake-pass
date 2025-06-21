@@ -18,74 +18,53 @@ const StatCard = ({ title, value, unit }) => (
 );
 
 const Statistics = ({ onBack }) => {
-  // Dnesní datum ve formátu YYYY-MM-DD
+  // default na dnešní datum YYYY-MM-DD
   const today = new Date().toISOString().slice(0, 10);
 
-  // Stav pro čísla
+  // stavy pro statistikę i transakce
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [errorStats, setErrorStats] = useState('');
 
-  // Stav pro transakce
   const [txs, setTxs] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [errorTx, setErrorTx] = useState('');
 
-  // Filtry
+  // filtry
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate]   = useState(today);
-  const [showTopup, setShowTopup] = useState(true);
-  const [showUsage, setShowUsage] = useState(true);
+  const [selectedTypes, setSelectedTypes] = useState(['topup', 'usage']); // výchozí oba typy
 
-  // Načíst statistiky (počty a sumy hodin)
+  // načtení statistik
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoadingStats(true);
-      setErrorStats('');
-      try {
-        const { data, error } = await supabase
-          .rpc('get_owner_stats', {
-            start_date: startDate,
-            end_date:   endDate,
-          });
+    setLoadingStats(true);
+    setErrorStats('');
+    supabase
+      .rpc('get_owner_stats', { start_date: startDate, end_date: endDate })
+      .then(({ data, error }) => {
         if (error) throw error;
         setStats(data[0]);
-      } catch (err) {
-        setErrorStats('Chyba při načítání statistik: ' + err.message);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-    fetchStats();
+      })
+      .catch(err => setErrorStats('Chyba při načítání statistik: ' + err.message))
+      .finally(() => setLoadingStats(false));
   }, [startDate, endDate]);
 
-  // Načíst transakce pro zvolený rozsah
+  // načtení transakcí
   useEffect(() => {
-    const fetchTx = async () => {
-      setLoadingTx(true);
-      setErrorTx('');
-      try {
-        const { data, error } = await supabase
-          .rpc('get_transactions_by_range', {
-            start_date: startDate,
-            end_date:   endDate,
-          });
+    setLoadingTx(true);
+    setErrorTx('');
+    supabase
+      .rpc('get_transactions_by_range', { start_date: startDate, end_date: endDate })
+      .then(({ data, error }) => {
         if (error) throw error;
         setTxs(data);
-      } catch (err) {
-        setErrorTx('Chyba při načítání transakcí: ' + err.message);
-      } finally {
-        setLoadingTx(false);
-      }
-    };
-    fetchTx();
+      })
+      .catch(err => setErrorTx('Chyba při načítání transakcí: ' + err.message))
+      .finally(() => setLoadingTx(false));
   }, [startDate, endDate]);
 
-  // Aplikovat filtr podle typu
-  const filteredTx = txs.filter(tx =>
-    (showTopup && tx.type === 'topup')
-    || (showUsage && tx.type === 'usage')
-  );
+  // aplikuj typový filtr
+  const filteredTx = txs.filter(tx => selectedTypes.includes(tx.type));
 
   return (
     <div style={{ padding: '1rem' }}>
@@ -96,41 +75,43 @@ const Statistics = ({ onBack }) => {
         Přehled a Statistiky
       </h2>
 
-      {/* Filtry */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center' }}>
+      {/* ───────── FILTRY ───────── */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+        alignItems: 'center'
+      }}>
         <label>
           Od:&nbsp;
-          <input
-            type="date"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-          />
+          <input type="date" value={startDate}
+            onChange={e => setStartDate(e.target.value)} />
         </label>
         <label>
           Do:&nbsp;
-          <input
-            type="date"
-            value={endDate}
-            onChange={e => setEndDate(e.target.value)}
-          />
+          <input type="date" value={endDate}
+            onChange={e => setEndDate(e.target.value)} />
         </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showTopup}
-            onChange={() => setShowTopup(!showTopup)}
-          /> Nabití permanentky
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showUsage}
-            onChange={() => setShowUsage(!showUsage)}
-          /> Použití permanentky
+
+        <label style={{ display: 'flex', flexDirection: 'column' }}>
+          Typ transakce:
+          <select
+            multiple
+            size={2}
+            value={selectedTypes}
+            onChange={e =>
+              setSelectedTypes(Array.from(e.target.selectedOptions, o => o.value))
+            }
+            style={{ minWidth: '180px', marginTop: '0.25rem' }}
+          >
+            <option value="topup">Nabití permanentky</option>
+            <option value="usage">Použití permanentky</option>
+          </select>
         </label>
       </div>
 
-      {/* Statistické karty */}
+      {/* ───────── STATISTICKÉ KARTY ───────── */}
       {errorStats
         ? <div style={{ color: 'red', marginBottom: '1rem' }}>{errorStats}</div>
         : loadingStats
@@ -150,7 +131,7 @@ const Statistics = ({ onBack }) => {
           )
       }
 
-      {/* Tabulka transakcí */}
+      {/* ───────── TABULKA TRANSAKCÍ ───────── */}
       {errorTx && <div style={{ color: 'red' }}>{errorTx}</div>}
       {loadingTx
         ? <div>Načítám transakce…</div>
@@ -165,28 +146,40 @@ const Statistics = ({ onBack }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredTx.map(tx => (
-                <tr key={tx.transaction_id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '0.5rem' }}>
-                    {new Date(tx.transacted_at).toLocaleString('cs-CZ', {
-                      day: '2-digit', month: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit'
-                    })}
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>
-                    {tx.type === 'topup'
-                      ? 'Nabití permanentky'
-                      : 'Použití permanentky'}
-                  </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                    {tx.hours > 0 ? `+${tx.hours}` : tx.hours}
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>{tx.user_name}</td>
-                </tr>
-              ))}
+              {filteredTx.map(tx => {
+                const isTopup = tx.type === 'topup';
+                const displayHours = isTopup
+                  ? `+${tx.hours}`
+                  : tx.hours; // usage: tx.hours je záporné
+                return (
+                  <tr key={tx.transaction_id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '0.5rem' }}>
+                      {new Date(tx.transacted_at).toLocaleString('cs-CZ', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>
+                      {isTopup
+                        ? 'Nabití permanentky'
+                        : 'Použití permanentky'}
+                    </td>
+                    <td style={{
+                      padding: '0.5rem',
+                      textAlign: 'right',
+                      color:   isTopup ? '#16a34a' : '#ef4444',
+                      fontWeight: 'bold'
+                    }}>
+                      {displayHours}
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>{tx.user_name}</td>
+                  </tr>
+                );
+              })}
               {filteredTx.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                  <td colSpan={4}
+                    style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
                     Žádné transakce pro zvolenou kombinaci.
                   </td>
                 </tr>
