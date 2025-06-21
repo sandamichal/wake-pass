@@ -1,221 +1,178 @@
-// src/pages/Statistics.jsx
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+// soubor: src/pages/Statistics.jsx
+import React, { useState, useEffect } from 'react'
+import { supabase } from '../supabaseClient'
 
-// Jedna kartička se statistikou
-const StatCard = ({ title, value, unit }) => {
-  return (
-    <div style={{
-      background: 'white',
-      padding: '1.5rem',
-      borderRadius: '0.5rem',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-      textAlign: 'center',
-    }}>
-      <div style={{
-        fontSize: '2.5rem',
-        fontWeight: 'bold',
-        color: '#3b82f6',
-      }}>
-        {value} {unit && <span style={{ fontSize: '1.5rem' }}>{unit}</span>}
-      </div>
-      <div style={{ fontSize: '1rem', color: '#6b7280' }}>
-        {title}
-      </div>
-    </div>
-  );
-};
+const Statistics = () => {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [ownerStats, setOwnerStats] = useState({ total_customers: 0, total_operators: 0 })
+  const [periodStats, setPeriodStats] = useState({ sold_hours: 0, used_hours: 0 })
+  const [transactions, setTransactions] = useState([])
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
 
-const Statistics = ({ onBack }) => {
-  // 1) Celkové počty
-  const [totalCustomers, setTotalCustomers] = useState(0);
-  const [totalOperators, setTotalOperators] = useState(0);
-
-  // 2) Date pickery
-  const [fromDate, setFromDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().slice(0,10);
-  });
-  const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0,10));
-
-  // 3) Statistika za období
-  const [soldHours, setSoldHours] = useState(0);
-  const [usedHours, setUsedHours] = useState(0);
-
-  // 4) Filtr transakcí
-  const [typeFilter, setTypeFilter] = useState('all'); // all | topup | usage | rental | one-time
-
-  // 5) Seznam transakcí
-  const [transactions, setTransactions] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  // Načtení celkových počtů zákazníků a operátorů
-  const fetchTotals = async () => {
-    const { data, error: rpcError } = await supabase.rpc('get_owner_stats');
-    if (rpcError) throw rpcError;
-    const row = Array.isArray(data) ? data[0] : data;
-    setTotalCustomers(row.total_customers ?? 0);
-    setTotalOperators(row.total_operators ?? 0);
-  };
-
-  // Načtení hodin za vybrané období
-  const fetchPeriodStats = async () => {
-    const { data, error: rpcError } = await supabase
-      .rpc('get_stats_by_period', { start_date: fromDate, end_date: toDate });
-    if (rpcError) throw rpcError;
-    const row = Array.isArray(data) ? data[0] : data;
-    setSoldHours(row.sold_hours ?? 0);
-    setUsedHours(row.used_hours ?? 0);
-  };
-
-  // Načtení transakcí za období a dle filtru
-  const fetchTransactions = async () => {
-    const { data, error: rpcError } = await supabase
-      .rpc('get_owner_transactions', {
-        start_date: fromDate,
-        end_date: toDate,
-        type_filter: typeFilter
-      });
-    if (rpcError) throw rpcError;
-    setTransactions(data || []);
-  };
-
-  // Společné načtení
-  const loadAll = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      await fetchTotals();
-      await fetchPeriodStats();
-      await fetchTransactions();
-    } catch (err) {
-      setError('Chyba při načítání: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Načteme vše jednou při mountu a znovu při změně filtrů/dat
+  // 1) Načtení celkových čísel (zákazníci, operátoři)
   useEffect(() => {
-    loadAll();
-  }, [fromDate, toDate, typeFilter]);
+    const loadOwnerStats = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase.rpc('get_owner_stats')
+        if (error) throw error
+        setOwnerStats(data)
+      } catch (err) {
+        setError('Nepodařilo se načíst přehled: ' + err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadOwnerStats()
+  }, [])
 
-  if (loading) {
-    return <div>Načítám data…</div>;
+  // 2) Při změně data spustit načtení agregátů
+  useEffect(() => {
+    if (dateFrom && dateTo) {
+      loadPeriodStats()
+      loadTransactions()
+    }
+  }, [dateFrom, dateTo, typeFilter])
+
+  const loadPeriodStats = async () => {
+    try {
+      setError('')
+      setLoading(true)
+      // převedeme datumy na ISO se zachováním časové zóny
+      const _start = new Date(dateFrom + 'T00:00:00Z').toISOString()
+      const _end   = new Date(dateTo   + 'T23:59:59Z').toISOString()
+      const { data, error } = await supabase
+        .rpc('get_stats_by_period', { _start, _end })
+      if (error) throw error
+      setPeriodStats(data)
+    } catch (err) {
+      setError('Nepodařilo se načíst statistiky pro vybrané období: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
-  if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+
+  const loadTransactions = async () => {
+    try {
+      setError('')
+      setLoading(true)
+      const _start = new Date(dateFrom + 'T00:00:00Z').toISOString()
+      const _end   = new Date(dateTo   + 'T23:59:59Z').toISOString()
+      const { data, error } = await supabase
+        .rpc('get_transactions_by_period', { _start, _end, type_filter: typeFilter })
+      if (error) throw error
+      setTransactions(data)
+    } catch (err) {
+      setError('Nepodařilo se načíst transakce: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div>
-      <button onClick={onBack} style={{ marginBottom: '1rem' }}>
+    <div style={{ padding: '1rem' }}>
+      <button onClick={() => window.history.back()} style={{ marginBottom: '1rem' }}>
         &larr; Zpět do menu
       </button>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Přehled a Statistiky</h2>
+      <h2 style={{ marginBottom: '1rem' }}>Přehled a Statistiky</h2>
 
-      {/* 1) Celkové počty */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '1rem',
-        margin: '1.5rem 0'
-      }}>
-        <StatCard title="Zákazníků celkem" value={totalCustomers} />
-        <StatCard title="Operátorů celkem" value={totalOperators} />
+      {loading && !error && <p>Načítám…</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      {/* 1) Celková čísla */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+        <div style={{ flex: 1, padding: '1rem', background: 'white', borderRadius: '0.5rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{ownerStats.total_customers}</div>
+          <div>Celkem zákazníků</div>
+        </div>
+        <div style={{ flex: 1, padding: '1rem', background: 'white', borderRadius: '0.5rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{ownerStats.total_operators}</div>
+          <div>Celkem operátorů</div>
+        </div>
       </div>
 
       {/* 2) Výběr období */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label>
-          Od:{' '}
-          <input
-            type="date"
-            value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
-          />
-        </label>{' '}
-        <label>
-          Do:{' '}
-          <input
-            type="date"
-            value={toDate}
-            onChange={e => setToDate(e.target.value)}
-          />
-        </label>
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
+        <div>
+          <label>Od:</label><br />
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        </div>
+        <div>
+          <label>Do:</label><br />
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        </div>
       </div>
 
-      {/* 3) Hodiny za období */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
-      }}>
-        <StatCard
-          title="Prodané hodiny"
-          value={Number(soldHours).toLocaleString('cs-CZ')}
-          unit="hod"
-        />
-        <StatCard
-          title="Použité hodiny"
-          value={Number(usedHours).toLocaleString('cs-CZ')}
-          unit="hod"
-        />
-      </div>
+      {/* 3) Součty pro vybrané období */}
+      {dateFrom && dateTo && (
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+          <div style={{ flex: 1, padding: '1rem', background: 'white', borderRadius: '0.5rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{periodStats.sold_hours}</div>
+            <div>Prodáno hodin</div>
+          </div>
+          <div style={{ flex: 1, padding: '1rem', background: 'white', borderRadius: '0.5rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{periodStats.used_hours}</div>
+            <div>Použito hodin</div>
+          </div>
+        </div>
+      )}
 
-      {/* 4) Filtr transakcí */}
-      <div style={{ marginBottom: '1rem' }}>
-        <label>
-          Zobrazit:{' '}
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-          >
-            <option value="all">Všechny transakce</option>
-            <option value="topup">Nabití permanentky</option>
-            <option value="usage">Použití permanentky</option>
-            <option value="rental">Pronájmy</option>
-            <option value="one-time">Jednorázové použití</option>
+      {/* 4) Filtr pro typ transakcí */}
+      {dateFrom && dateTo && (
+        <div style={{ marginBottom: '1rem' }}>
+          <label>Typ transakcí:</label>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ marginLeft: '0.5rem' }}>
+            <option value="all">Vše</option>
+            <option value="topup">Prodané hodiny</option>
+            <option value="usage">Použité hodiny</option>
           </select>
-        </label>
-      </div>
+        </div>
+      )}
 
       {/* 5) Tabulka transakcí */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
-              <th style={{ padding: '0.5rem' }}>Datum</th>
-              <th style={{ padding: '0.5rem' }}>Typ</th>
-              <th style={{ padding: '0.5rem' }}>Hodiny</th>
-              <th style={{ padding: '0.5rem' }}>Uživatel</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((tx) => (
-              <tr key={tx.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <td style={{ padding: '0.5rem' }}>
-                  {new Date(tx.created_at).toLocaleString('cs-CZ')}
-                </td>
-                <td style={{ padding: '0.5rem' }}>
-                  {tx.type === 'topup' ? 'Nabití' :
-                   tx.type === 'usage' ? 'Použití' :
-                   tx.type === 'rental' ? 'Pronájem' :
-                   'Jiný'}
-                </td>
-                <td style={{ padding: '0.5rem' }}>{tx.amount}</td>
-                <td style={{ padding: '0.5rem' }}>{tx.full_name}</td>
+      {dateFrom && dateTo && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
+                <th style={{ padding: '0.5rem', borderBottom: '1px solid #ddd' }}>Datum</th>
+                <th style={{ padding: '0.5rem', borderBottom: '1px solid #ddd' }}>Typ</th>
+                <th style={{ padding: '0.5rem', borderBottom: '1px solid #ddd' }}>Hodiny</th>
+                <th style={{ padding: '0.5rem', borderBottom: '1px solid #ddd' }}>Uživatel</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {transactions.map(tx => (
+                <tr key={tx.id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '0.5rem' }}>
+                    {new Date(tx.created_at).toLocaleString('cs-CZ', {
+                      day: 'numeric', month: 'numeric', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                  </td>
+                  <td style={{ padding: '0.5rem', textTransform: 'capitalize' }}>
+                    {tx.type === 'topup' ? 'Nabití' : 'Použití'}
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>{Math.abs(tx.amount)}</td>
+                  <td style={{ padding: '0.5rem' }}>{tx.user_full_name}</td>
+                </tr>
+              ))}
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                    Žádné transakce k zobrazení.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default Statistics;
+export default Statistics
