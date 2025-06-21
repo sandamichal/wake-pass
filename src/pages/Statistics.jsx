@@ -1,148 +1,200 @@
+// src/pages/Statistics.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-// Jednoduchá karta pro číslo + popisek
-const StatCard = ({ title, value, unit = '' }) => (
+const StatCard = ({ title, value, unit }) => (
   <div style={{
-    background: 'white', padding: '1rem', borderRadius: '0.5rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center'
+    background: 'white',
+    padding: '1.5rem',
+    borderRadius: '0.5rem',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+    textAlign: 'center',
   }}>
-    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3b82f6' }}>
-      {value} {unit}
+    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#3b82f6' }}>
+      {value}{unit && <span style={{ fontSize: '1.5rem' }}> {unit}</span>}
     </div>
     <div style={{ fontSize: '1rem', color: '#6b7280' }}>{title}</div>
   </div>
 );
 
-const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-
 const Statistics = ({ onBack }) => {
-  // 1) Stav pro datumové filtry
+  // Dnesní datum ve formátu YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Stav pro čísla
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [errorStats, setErrorStats] = useState('');
+
+  // Stav pro transakce
+  const [txs, setTxs] = useState([]);
+  const [loadingTx, setLoadingTx] = useState(true);
+  const [errorTx, setErrorTx] = useState('');
+
+  // Filtry
   const [startDate, setStartDate] = useState(today);
-  const [endDate,   setEndDate]   = useState(today);
+  const [endDate, setEndDate]   = useState(today);
+  const [showTopup, setShowTopup] = useState(true);
+  const [showUsage, setShowUsage] = useState(true);
 
-  // 2) Stav pro data
-  const [stats,       setStats]       = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState('');
-
-  // 3) Funkce pro načtení všech dat
-  const fetchAll = async (from, to) => {
-    setLoading(true);
-    setError('');
-    try {
-      // 3.1 Souhrn statistik
-      const { data: statData, error: statErr } = await supabase
-        .rpc('get_owner_stats', { start_date: from, end_date: to });
-      if (statErr) throw statErr;
-      setStats(statData[0] || {});
-
-      // 3.2 Seznam transakcí
-      const { data: txData, error: txErr } = await supabase
-        .rpc('get_transactions_by_range', { start_date: from, end_date: to });
-      if (txErr) throw txErr;
-      setTransactions(txData || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 4) Při mountu načíst s dnešním datem
+  // Načíst statistiky (počty a sumy hodin)
   useEffect(() => {
-    fetchAll(startDate, endDate);
-  }, []);
+    const fetchStats = async () => {
+      setLoadingStats(true);
+      setErrorStats('');
+      try {
+        const { data, error } = await supabase
+          .rpc('get_owner_stats', {
+            start_date: startDate,
+            end_date:   endDate,
+          });
+        if (error) throw error;
+        setStats(data[0]);
+      } catch (err) {
+        setErrorStats('Chyba při načítání statistik: ' + err.message);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    fetchStats();
+  }, [startDate, endDate]);
 
-  if (loading) return <div style={{padding: '2rem'}}>Načítám...</div>;
-  if (error)   return <div style={{ color: 'red', padding: '2rem' }}>Chyba: {error}</div>;
+  // Načíst transakce pro zvolený rozsah
+  useEffect(() => {
+    const fetchTx = async () => {
+      setLoadingTx(true);
+      setErrorTx('');
+      try {
+        const { data, error } = await supabase
+          .rpc('get_transactions_by_range', {
+            start_date: startDate,
+            end_date:   endDate,
+          });
+        if (error) throw error;
+        setTxs(data);
+      } catch (err) {
+        setErrorTx('Chyba při načítání transakcí: ' + err.message);
+      } finally {
+        setLoadingTx(false);
+      }
+    };
+    fetchTx();
+  }, [startDate, endDate]);
+
+  // Aplikovat filtr podle typu
+  const filteredTx = txs.filter(tx =>
+    (showTopup && tx.type === 'topup')
+    || (showUsage && tx.type === 'usage')
+  );
 
   return (
     <div style={{ padding: '1rem' }}>
       <button onClick={onBack} style={{ marginBottom: '1rem' }}>
-        &larr; Zpět
+        ← Zpět do menu
       </button>
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+        Přehled a Statistiky
+      </h2>
 
-      <h2 style={{ marginBottom: '1rem' }}>Přehled a Statistiky</h2>
-
-      {/* 1) Souhrn zákazníků a operátorů */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
-      }}>
-        <StatCard title="Celkem zákazníků" value={stats.total_customers} />
-        <StatCard title="Celkem operátorů" value={stats.total_operators} />
-      </div>
-
-      {/* 2) Datumový filtr */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem'
-      }}>
+      {/* Filtry */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center' }}>
         <label>
-          Od: <input
+          Od:&nbsp;
+          <input
             type="date"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
           />
         </label>
         <label>
-          Do: <input
+          Do:&nbsp;
+          <input
             type="date"
             value={endDate}
             onChange={e => setEndDate(e.target.value)}
           />
         </label>
-        <button onClick={() => fetchAll(startDate, endDate)}>
-          Filtrovat
-        </button>
+        <label>
+          <input
+            type="checkbox"
+            checked={showTopup}
+            onChange={() => setShowTopup(!showTopup)}
+          /> Nabití permanentky
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={showUsage}
+            onChange={() => setShowUsage(!showUsage)}
+          /> Použití permanentky
+        </label>
       </div>
 
-      {/* 3) Prodáno a použito hodin */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
-      }}>
-        <StatCard title="Prodáno hodin" value={stats.sold_hours} unit="hod" />
-        <StatCard title="Použito hodin" value={stats.used_hours} unit="hod" />
-      </div>
+      {/* Statistické karty */}
+      {errorStats
+        ? <div style={{ color: 'red', marginBottom: '1rem' }}>{errorStats}</div>
+        : loadingStats
+          ? <div>Načítám statistiky…</div>
+          : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
+              gap: '1rem',
+              marginBottom: '2rem'
+            }}>
+              <StatCard title="Celkem zákazníků" value={stats.total_customers} />
+              <StatCard title="Celkem operátorů" value={stats.total_operators} />
+              <StatCard title="Prodáno hodin" value={stats.sold_hours} unit="hod" />
+              <StatCard title="Použito hodin" value={stats.used_hours} unit="hod" />
+            </div>
+          )
+      }
 
-      {/* 4) Tabulka transakcí */}
-      <h3 style={{ marginBottom: '0.5rem' }}>Seznam transakcí</h3>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ccc' }}>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Datum</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Typ</th>
-              <th style={{ textAlign: 'right', padding: '0.5rem' }}>Hodiny</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Uživatel</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map(tx => (
-              <tr key={tx.transaction_id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '0.5rem' }}>
-                  {new Date(tx.transacted_at).toLocaleString('cs-CZ')}
-                </td>
-                <td style={{ padding: '0.5rem' }}>{tx.type}</td>
-                <td style={{
-                  padding: '0.5rem',
-                  textAlign: 'right',
-                  color: tx.type === 'topup' ? 'green' : 'red'
-                }}>
-                  {tx.hours > 0 ? '+' : ''}{tx.hours}
-                </td>
-                <td style={{ padding: '0.5rem' }}>{tx.user_name}</td>
+      {/* Tabulka transakcí */}
+      {errorTx && <div style={{ color: 'red' }}>{errorTx}</div>}
+      {loadingTx
+        ? <div>Načítám transakce…</div>
+        : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #ccc' }}>
+                <th style={{ padding: '0.5rem', textAlign: 'left' }}>Čas</th>
+                <th style={{ padding: '0.5rem', textAlign: 'left' }}>Typ</th>
+                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Hodiny</th>
+                <th style={{ padding: '0.5rem', textAlign: 'left' }}>Uživatel</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredTx.map(tx => (
+                <tr key={tx.transaction_id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '0.5rem' }}>
+                    {new Date(tx.transacted_at).toLocaleString('cs-CZ', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    {tx.type === 'topup'
+                      ? 'Nabití permanentky'
+                      : 'Použití permanentky'}
+                  </td>
+                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                    {tx.hours > 0 ? `+${tx.hours}` : tx.hours}
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>{tx.user_name}</td>
+                </tr>
+              ))}
+              {filteredTx.length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                    Žádné transakce pro zvolenou kombinaci.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )
+      }
     </div>
   );
 };
