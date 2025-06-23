@@ -190,9 +190,6 @@ const ProductManagement = ({ onBack }) => {
 
   return (
     <div>
-      <button onClick={onBack} style={{ marginBottom: '1rem' }}>
-        &larr; Zpět do menu
-      </button>
       <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
         Správa Produktů a Ceníku
       </h2>
