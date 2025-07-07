@@ -118,9 +118,7 @@ const TopUpForm = ({ onBack }) => {
 
   return (
     <div style={{ padding: '1rem' }}>
-      <button onClick={onBack} style={{ marginBottom: '1rem' }}>
-        &larr; Zpět do menu
-      </button>
+
       <h2 style={{ marginBottom: '1rem' }}>Dobití Permanentky</h2>
 
       {/* Vyhledání zákazníka */}
